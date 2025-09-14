@@ -26,7 +26,7 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  // 응답 예약
+  // 모든 명령어 공통: 응답 예약
   await interaction.deferReply();
 
   // /돈내놔
