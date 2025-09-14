@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, PermissionsBitField } from 'discord.js';
 import sqlite3 from 'sqlite3';
 import express from 'express';   // ✅ Render 우회용 웹서버
 
@@ -15,7 +15,7 @@ app.listen(PORT, () => console.log(`✅ Web server running on port ${PORT}`));
 // ======================
 // ✅ 디스코드 봇 설정
 // ======================
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
 const db = new sqlite3.Database('./database.db');
 
 const fmt = (n) => Number(n).toLocaleString();
@@ -86,7 +86,7 @@ client.on('interactionCreate', async (interaction) => {
     const side = options.getString('선택');
     const bet = options.getInteger('금액');
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
+      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 시작하세요!");
       if (bet <= 0) return interaction.editReply("❌ 베팅 금액은 1 이상이어야 합니다!");
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
@@ -112,7 +112,7 @@ client.on('interactionCreate', async (interaction) => {
     let bet = options.getInteger('금액');
 
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
+      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 시작하세요!");
 
       // 올인 모드
       if (betType === "all") {
@@ -205,8 +205,43 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
   }
+
+  // ======================
+  // /청소
+  // ======================
+  else if (commandName === '청소') {
+    const amount = options.getInteger('개수');
+
+    if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+      return interaction.editReply("❌ 이 명령어를 사용할 권한이 없습니다!");
+    }
+
+    if (!amount || amount < 1 || amount > 1000) {
+      return interaction.editReply("⚠️ 1~1000 사이의 숫자를 입력해주세요!");
+    }
+
+    let deletedCount = 0;
+    const batchSize = 100;
+    const iterations = Math.ceil(amount / batchSize);
+
+    for (let i = 0; i < iterations; i++) {
+      const toDelete = Math.min(batchSize, amount - deletedCount);
+      if (toDelete <= 0) break;
+
+      try {
+        const deleted = await interaction.channel.bulkDelete(toDelete, true);
+        deletedCount += deleted.size;
+      } catch (err) {
+        console.error(err);
+        return interaction.editReply("⚠️ 메시지를 삭제하는 중 오류가 발생했습니다!");
+      }
+    }
+
+    interaction.editReply(`🧹 총 ${deletedCount}개의 메시지를 삭제했습니다!`);
+  }
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
 
 

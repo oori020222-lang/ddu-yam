@@ -4,15 +4,15 @@ import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 const commands = [
   new SlashCommandBuilder()
     .setName('돈내놔')
-    .setDescription('오늘의 첫 돈 20,000원을 지급받습니다'),
+    .setDescription('매일 20,000 코인을 받습니다'),
 
   new SlashCommandBuilder()
     .setName('잔액')
-    .setDescription('현재 보유 코인을 확인합니다'),
+    .setDescription('현재 잔액을 확인합니다'),
 
   new SlashCommandBuilder()
     .setName('동전던지기')
-    .setDescription('동전을 던져서 맞히면 배팅금을 얻습니다!')
+    .setDescription('앞면/뒷면에 베팅합니다')
     .addStringOption(option =>
       option.setName('선택')
         .setDescription('앞면 또는 뒷면')
@@ -24,14 +24,14 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('10배복권')
-    .setDescription('최대 10배 당첨이 가능한 복권!')
+    .setDescription('운을 시험하는 슬롯 머신')
     .addStringOption(option =>
       option.setName('베팅방식')
-        .setDescription('베팅 방식 선택 (all 입력 시 올인)')
+        .setDescription('"all" 입력 시 올인')
         .setRequired(false))
     .addIntegerOption(option =>
       option.setName('금액')
-        .setDescription('베팅 금액 (최소 1,000)')
+        .setDescription('베팅 금액 (없으면 all과 함께 사용 가능)')
         .setRequired(false)),
 
   new SlashCommandBuilder()
@@ -48,20 +48,24 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('랭킹')
-    .setDescription('서버별 또는 전체 랭킹을 확인합니다')
+    .setDescription('잔액 랭킹을 확인합니다')
     .addStringOption(option =>
       option.setName('종류')
-        .setDescription('server 또는 global')
-        .setRequired(true)),
+        .setDescription('서버 또는 전체')
+        .setRequired(true)
+        .addChoices(
+          { name: '서버 랭킹', value: 'server' },
+          { name: '전체 랭킹', value: 'global' }
+        )),
 
   new SlashCommandBuilder()
-    .setName('관리자권한')
-    .setDescription('최고 관리자가 관리자 권한을 켜거나 끕니다')
-    .addStringOption(option =>
-      option.setName('모드')
-        .setDescription('on 또는 off')
+    .setName('청소')
+    .setDescription('채팅방 메시지를 삭제합니다 (관리자 전용)')
+    .addIntegerOption(option =>
+      option.setName('개수')
+        .setDescription('삭제할 메시지 개수 (1~1000)')
         .setRequired(true)),
-].map(cmd => cmd.toJSON());
+].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
