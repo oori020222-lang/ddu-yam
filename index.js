@@ -97,22 +97,23 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   // ======================
-  // /10배복권
+  // /10배복권 (수정됨)
   // ======================
   else if (commandName === '10배복권') {
-    const betType = options.getString('베팅방식');
-    let bet = options.getInteger('금액');
+    let betInput = options.getString('금액'); // ✅ 금액 입력 (숫자 or "올인")
 
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
       if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
 
-      // 올인 모드
-      if (betType === "all") {
+      let bet = 0;
+      if (betInput === "올인") {
         bet = row.balance;
         if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
+      } else {
+        bet = parseInt(betInput, 10);
+        if (isNaN(bet) || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
       }
 
-      if (!bet || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
       const SLOT_SYMBOLS = ["🥚","🐣","🐥","🐔","🍗"];
@@ -200,4 +201,3 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
