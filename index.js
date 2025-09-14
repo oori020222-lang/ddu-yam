@@ -32,7 +32,7 @@ db.run(`
   )
 `);
 
-// ✅ 기존 DB에 isAdmin 없을 경우 자동 추가
+// ✅ isAdmin 컬럼 없으면 자동 추가
 db.run(`ALTER TABLE users ADD COLUMN isAdmin INTEGER DEFAULT 0`, (err) => {
   if (err && !err.message.includes("duplicate column")) {
     console.error("컬럼 추가 중 오류:", err.message);
@@ -123,9 +123,9 @@ client.on('interactionCreate', async (interaction) => {
       if (!bet || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
-      const SLOT_SYMBOLS = ["🥚","🐣","🐥","🐔"];
-      const SLOT_WEIGHTS = [40, 30, 22, 8]; // 꽝, 2배, 5배, 10배
-      const SLOT_PAYOUTS = { "🐣":2, "🐥":5, "🐔":10 };
+      const SLOT_SYMBOLS = ["🥚","🐥","🐔","🍗"];
+      const SLOT_WEIGHTS = [40, 30, 25, 5]; // 꽝 40%, 2배 30%, 5배 25%, 10배 5%
+      const SLOT_PAYOUTS = { "🐥":2, "🐔":5, "🍗":10 };
 
       const r = Math.random() * 100;
       let sum = 0, result = "🥚";
@@ -208,4 +208,5 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
 
