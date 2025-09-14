@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, PermissionsBitField } from 'discord.js';
+import { Client, GatewayIntentBits } from 'discord.js';
 import sqlite3 from 'sqlite3';
-import express from 'express';   // ✅ Render 우회용 웹서버
+import express from 'express';
 
 // ======================
-// ✅ Render 우회 서버
+// Render 우회용 웹서버
 // ======================
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,11 +13,10 @@ app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(PORT, () => console.log(`✅ Web server running on port ${PORT}`));
 
 // ======================
-// ✅ 디스코드 봇 설정
+// 디스코드 봇 설정
 // ======================
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const db = new sqlite3.Database('./database.db');
-
 const fmt = (n) => Number(n).toLocaleString();
 
 // DB 초기화
@@ -27,32 +26,21 @@ db.run(`
     guildId TEXT,
     balance INTEGER,
     lastDaily TEXT,
-    isAdmin INTEGER DEFAULT 0,
     PRIMARY KEY (id, guildId)
   )
 `);
 
-// ✅ isAdmin 컬럼 없으면 자동 추가
-db.run(`ALTER TABLE users ADD COLUMN isAdmin INTEGER DEFAULT 0`, (err) => {
-  if (err && !err.message.includes("duplicate column")) {
-    console.error("컬럼 추가 중 오류:", err.message);
-  }
-});
-
-client.once('ready', () => {
-  console.log(`🤖 Logged in as ${client.user.tag}`);
+client.once('clientReady', () => {
+  console.log(`🤖 ${client.user.tag}로 로그인함`);
 });
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  // 안전 모드: deferReply 사용
   await interaction.deferReply();
 
-  // ======================
   // /돈내놔
-  // ======================
   if (commandName === '돈내놔') {
     const today = new Date().toDateString();
     db.get("SELECT balance, lastDaily FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
@@ -69,9 +57,7 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // ======================
   // /잔액
-  // ======================
   else if (commandName === '잔액') {
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
       if (!row) return interaction.editReply("❌ 아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.");
@@ -79,14 +65,12 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // ======================
   // /동전던지기
-  // ======================
   else if (commandName === '동전던지기') {
     const side = options.getString('선택');
     const bet = options.getInteger('금액');
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 시작하세요!");
+      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
       if (bet <= 0) return interaction.editReply("❌ 베팅 금액은 1 이상이어야 합니다!");
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
@@ -104,17 +88,14 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // ======================
-  // /10배복권
-  // ======================
+  // /10배복권 (꽝 / 2배 / 3배 / 5배 / 10배)
   else if (commandName === '10배복권') {
     const betType = options.getString('베팅방식');
     let bet = options.getInteger('금액');
 
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 시작하세요!");
+      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
 
-      // 올인 모드
       if (betType === "all") {
         bet = row.balance;
         if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
@@ -123,9 +104,17 @@ client.on('interactionCreate', async (interaction) => {
       if (!bet || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
-      const SLOT_SYMBOLS = ["🥚","🐥","🐔","🍗"];
-      const SLOT_WEIGHTS = [40, 30, 25, 5]; // 꽝 40%, 2배 30%, 5배 25%, 10배 5%
-      const SLOT_PAYOUTS = { "🐥":2, "🐔":5, "🍗":10 };
+      // 🎰 확률표 (총합 100%)
+      const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗"];
+      const SLOT_WEIGHTS = [35, 30, 20, 10, 5];  
+      // 예시: 꽝35% / 2배30% / 3배20% / 5배10% / 10배5%
+
+      const SLOT_PAYOUTS = { 
+        "🐣": 2, 
+        "🐥": 3, 
+        "🐔": 5, 
+        "🍗": 10 
+      };
 
       const r = Math.random() * 100;
       let sum = 0, result = "🥚";
@@ -153,9 +142,7 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // ======================
   // /송금
-  // ======================
   else if (commandName === '송금') {
     const target = options.getUser('받는사람');
     const amount = options.getInteger('금액');
@@ -175,9 +162,7 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // ======================
   // /랭킹
-  // ======================
   else if (commandName === '랭킹') {
     const type = options.getString('종류');
 
@@ -206,42 +191,34 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // ======================
+  // /관리자권한
+  else if (commandName === '관리자권한') {
+    const adminId = "여기에_본인_디스코드_ID"; // 본인 Discord ID 넣기
+    if (user.id !== adminId) {
+      return interaction.editReply("❌ 이 명령어는 관리자만 사용할 수 있습니다!");
+    }
+
+    const target = options.getUser('대상');
+    const amount = options.getInteger('금액');
+
+    if (amount <= 0) return interaction.editReply("❌ 지급 금액은 1 이상이어야 합니다!");
+
+    db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
+    db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
+
+    interaction.editReply(`✅ ${target.username} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`);
+  }
+
   // /청소
-  // ======================
   else if (commandName === '청소') {
     const amount = options.getInteger('개수');
+    if (amount < 1 || amount > 100) return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
 
-    if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-      return interaction.editReply("❌ 이 명령어를 사용할 권한이 없습니다!");
-    }
-
-    if (!amount || amount < 1 || amount > 1000) {
-      return interaction.editReply("⚠️ 1~1000 사이의 숫자를 입력해주세요!");
-    }
-
-    let deletedCount = 0;
-    const batchSize = 100;
-    const iterations = Math.ceil(amount / batchSize);
-
-    for (let i = 0; i < iterations; i++) {
-      const toDelete = Math.min(batchSize, amount - deletedCount);
-      if (toDelete <= 0) break;
-
-      try {
-        const deleted = await interaction.channel.bulkDelete(toDelete, true);
-        deletedCount += deleted.size;
-      } catch (err) {
-        console.error(err);
-        return interaction.editReply("⚠️ 메시지를 삭제하는 중 오류가 발생했습니다!");
-      }
-    }
-
-    interaction.editReply(`🧹 총 ${deletedCount}개의 메시지를 삭제했습니다!`);
+    const channel = interaction.channel;
+    const messages = await channel.bulkDelete(amount, true);
+    interaction.editReply(`🧹 ${messages.size}개의 메시지를 삭제했습니다.`);
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
-
 
