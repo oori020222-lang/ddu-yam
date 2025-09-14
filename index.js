@@ -32,6 +32,13 @@ db.run(`
   )
 `);
 
+// ✅ 기존 DB에 isAdmin 없을 경우 자동 추가
+db.run(`ALTER TABLE users ADD COLUMN isAdmin INTEGER DEFAULT 0`, (err) => {
+  if (err && !err.message.includes("duplicate column")) {
+    console.error("컬럼 추가 중 오류:", err.message);
+  }
+});
+
 client.once('ready', () => {
   console.log(`🤖 Logged in as ${client.user.tag}`);
 });
@@ -107,6 +114,7 @@ client.on('interactionCreate', async (interaction) => {
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
       if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
 
+      // 올인 모드
       if (betType === "all") {
         bet = row.balance;
         if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
@@ -116,7 +124,7 @@ client.on('interactionCreate', async (interaction) => {
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
       const SLOT_SYMBOLS = ["🥚","🐣","🐥","🐔"];
-      const SLOT_WEIGHTS = [40, 30, 25, 5];
+      const SLOT_WEIGHTS = [40, 30, 22, 8]; // 꽝, 2배, 5배, 10배
       const SLOT_PAYOUTS = { "🐣":2, "🐥":5, "🐔":10 };
 
       const r = Math.random() * 100;
@@ -159,7 +167,7 @@ client.on('interactionCreate', async (interaction) => {
       if (!senderRow) return interaction.editReply("❌ 아직 돈을 받은 적이 없는 유저는 송금할 수 없습니다! `/돈내놔`로 시작하세요.");
       if (senderRow.balance < amount) return interaction.editReply("❌ 잔액이 부족합니다!");
 
-      db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily, isAdmin) VALUES (?, ?, 0, '', 0)", [target.id, guild.id]);
+      db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
       db.run("UPDATE users SET balance = balance - ? WHERE id = ? AND guildId = ?", [amount, user.id, guild.id]);
       db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
 
@@ -197,34 +205,7 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
   }
-
-  // ======================
-  // /관리자권한
-  // ======================
-  else if (commandName === '관리자권한') {
-    const mode = options.getString('모드'); // "on" or "off"
-    const ADMIN_ID = "627846998074327051"; 
-
-    if (user.id !== ADMIN_ID) {
-      return interaction.editReply("❌ 이 명령어는 최고 관리자만 실행할 수 있습니다!");
-    }
-
-    db.get("SELECT * FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) {
-        db.run("INSERT INTO users (id, guildId, balance, lastDaily, isAdmin) VALUES (?, ?, 0, '', 0)", [user.id, guild.id]);
-      }
-
-      if (mode === "on") {
-        db.run("UPDATE users SET isAdmin = 1 WHERE id = ? AND guildId = ?", [user.id, guild.id]);
-        interaction.editReply("✅ 관리자 권한이 활성화되었습니다!");
-      } else if (mode === "off") {
-        db.run("UPDATE users SET isAdmin = 0 WHERE id = ? AND guildId = ?", [user.id, guild.id]);
-        interaction.editReply("🛑 관리자 권한이 해제되었습니다!");
-      } else {
-        interaction.editReply("❌ 올바른 모드를 입력하세요: `on` 또는 `off`");
-      }
-    });
-  }
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
