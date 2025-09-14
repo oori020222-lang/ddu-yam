@@ -39,7 +39,7 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  // 안전 모드: deferReply 사용
+  // ✅ 안전 모드: deferReply 사용
   await interaction.deferReply();
 
   // ======================
@@ -97,11 +97,10 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   // ======================
-  // /10배복권 (수정됨)
+  // /10배복권
   // ======================
   else if (commandName === '10배복권') {
-    let betInput = options.getString('금액'); // ✅ 금액 입력 (숫자 or "올인")
-
+    const betInput = options.getString('금액');
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
       if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
 
@@ -111,14 +110,14 @@ client.on('interactionCreate', async (interaction) => {
         if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
       } else {
         bet = parseInt(betInput, 10);
-        if (isNaN(bet) || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
       }
 
+      if (!bet || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
-      const SLOT_SYMBOLS = ["🥚","🐣","🐥","🐔","🍗"];
-      const SLOT_WEIGHTS = [30, 30, 20, 15, 5];
-      const SLOT_PAYOUTS = { "🐣":1, "🐥":2, "🐔":5, "🍗":10 };
+      const SLOT_SYMBOLS = ["🥚","🐣","🐥","🐔"];
+      const SLOT_WEIGHTS = [40, 32, 25, 3];   // ✅ 최종 확률
+      const SLOT_PAYOUTS = { "🐣":2, "🐥":5, "🐔":10 };
 
       const r = Math.random() * 100;
       let sum = 0, result = "🥚";
