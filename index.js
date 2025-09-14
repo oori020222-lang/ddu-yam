@@ -209,16 +209,30 @@ client.on('interactionCreate', async (interaction) => {
     interaction.editReply(`✅ ${target.username} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`);
   }
 
-  // /청소
+  // /청소 (전체 or 특정 유저 선택)
   else if (commandName === '청소') {
     const amount = options.getInteger('개수');
-    if (amount < 1 || amount > 100) return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
+    const targetUser = options.getUser('유저'); // 특정 유저 선택 (옵션)
+
+    if (amount < 1 || amount > 100) {
+      return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
+    }
 
     const channel = interaction.channel;
-    const messages = await channel.bulkDelete(amount, true);
-    interaction.editReply(`🧹 ${messages.size}개의 메시지를 삭제했습니다.`);
+    const messages = await channel.messages.fetch({ limit: amount });
+
+    let deleted;
+    if (targetUser) {
+      // 특정 유저 메시지 삭제
+      const userMessages = messages.filter(m => m.author.id === targetUser.id);
+      deleted = await channel.bulkDelete(userMessages, true);
+      interaction.editReply(`🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`);
+    } else {
+      // 전체 메시지 삭제
+      deleted = await channel.bulkDelete(messages, true);
+      interaction.editReply(`🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`);
+    }
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
