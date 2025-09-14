@@ -1,13 +1,26 @@
+import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import sqlite3 from 'sqlite3';
+import express from 'express';   // ✅ Render 우회용 웹서버
 
+// ======================
+// ✅ Render 우회 서버
+// ======================
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => res.send('Bot is running!'));
+app.listen(PORT, () => console.log(`✅ Web server running on port ${PORT}`));
+
+// ======================
+// ✅ 디스코드 봇 설정
+// ======================
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const db = new sqlite3.Database('./database.db');
 
-// 숫자 포맷
 const fmt = (n) => Number(n).toLocaleString();
 
-// DB 초기화 (서버별 잔액 관리)
+// DB 초기화
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT,
@@ -26,10 +39,12 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  // 모든 명령어 공통: 응답 예약
+  // 안전 모드: deferReply 사용
   await interaction.deferReply();
 
+  // ======================
   // /돈내놔
+  // ======================
   if (commandName === '돈내놔') {
     const today = new Date().toDateString();
     db.get("SELECT balance, lastDaily FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
@@ -46,7 +61,9 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
+  // ======================
   // /잔액
+  // ======================
   else if (commandName === '잔액') {
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
       if (!row) return interaction.editReply("❌ 아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.");
@@ -54,7 +71,9 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
+  // ======================
   // /동전던지기
+  // ======================
   else if (commandName === '동전던지기') {
     const side = options.getString('선택');
     const bet = options.getInteger('금액');
@@ -77,7 +96,9 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
+  // ======================
   // /10배복권
+  // ======================
   else if (commandName === '10배복권') {
     const betType = options.getString('베팅방식');
     let bet = options.getInteger('금액');
@@ -85,7 +106,7 @@ client.on('interactionCreate', async (interaction) => {
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
       if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
 
-      // 올인
+      // 올인 모드
       if (betType === "all") {
         bet = row.balance;
         if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
@@ -124,7 +145,9 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
+  // ======================
   // /송금
+  // ======================
   else if (commandName === '송금') {
     const target = options.getUser('받는사람');
     const amount = options.getInteger('금액');
@@ -144,34 +167,33 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
+  // ======================
   // /랭킹
+  // ======================
   else if (commandName === '랭킹') {
     const type = options.getString('종류');
 
     if (type === 'server') {
-      db.all("SELECT id, balance FROM users WHERE guildId = ? ORDER BY balance DESC LIMIT 10",
-        [guild.id],
-        (err, rows) => {
-          if (!rows || rows.length === 0) return interaction.editReply("📉 이 서버에 데이터가 없습니다!");
+      db.all("SELECT id, balance FROM users WHERE guildId = ? ORDER BY balance DESC LIMIT 10", [guild.id], (err, rows) => {
+        if (!rows || rows.length === 0) return interaction.editReply("📉 이 서버에 데이터가 없습니다!");
 
-          let rankMsg = rows.map((row, i) => {
-            const userTag = client.users.cache.get(row.id)?.username || row.id;
-            return `#${i+1} 🏆 ${userTag} — ${fmt(row.balance)} 코인`;
-          }).join("\n");
+        let rankMsg = rows.map((row, i) => {
+          const userTag = client.users.cache.get(row.id)?.username || row.id;
+          return `#${i+1} 🏆 ${userTag} — ${fmt(row.balance)} 코인`;
+        }).join("\n");
 
-          interaction.editReply(`**🏅 ${guild.name} 서버 랭킹 TOP 10**\n${rankMsg}`);
+        interaction.editReply(`**🏅 ${guild.name} 서버 랭킹 TOP 10**\n${rankMsg}`);
       });
     } else if (type === 'global') {
-      db.all("SELECT id, SUM(balance) as total FROM users GROUP BY id ORDER BY total DESC LIMIT 10",
-        (err, rows) => {
-          if (!rows || rows.length === 0) return interaction.editReply("📉 아직 전체 데이터가 없습니다!");
+      db.all("SELECT id, SUM(balance) as total FROM users GROUP BY id ORDER BY total DESC LIMIT 10", (err, rows) => {
+        if (!rows || rows.length === 0) return interaction.editReply("📉 아직 전체 데이터가 없습니다!");
 
-          let rankMsg = rows.map((row, i) => {
-            const userTag = client.users.cache.get(row.id)?.username || row.id;
-            return `#${i+1} 🌍 ${userTag} — ${fmt(row.total)} 코인`;
-          }).join("\n");
+        let rankMsg = rows.map((row, i) => {
+          const userTag = client.users.cache.get(row.id)?.username || row.id;
+          return `#${i+1} 🌍 ${userTag} — ${fmt(row.total)} 코인`;
+        }).join("\n");
 
-          interaction.editReply(`**🌍 전체 서버 랭킹 TOP 10**\n${rankMsg}`);
+        interaction.editReply(`**🌍 전체 서버 랭킹 TOP 10**\n${rankMsg}`);
       });
     }
   }
