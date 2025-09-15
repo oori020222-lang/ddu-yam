@@ -409,7 +409,7 @@ client.on('interactionCreate', async (interaction) => {
     // ======================
     else if (commandName === '청소') {
       const amount = options.getInteger('개수');
-      const target = options.getUser('유저');
+      const target = options.getUser('유저'); // ✅ 유저 선택 옵션
 
       if (amount < 1 || amount > 100) {
         const embed = new EmbedBuilder()
@@ -422,6 +422,7 @@ client.on('interactionCreate', async (interaction) => {
       const channel = interaction.channel;
 
       if (target) {
+        // 특정 유저 메시지 삭제
         const messages = await channel.messages.fetch({ limit: 100 });
         const userMessages = messages.filter(m => m.author.id === target.id).first(amount);
 
@@ -441,6 +442,7 @@ client.on('interactionCreate', async (interaction) => {
 
         return interaction.editReply({ embeds: [embed] });
       } else {
+        // 전체 메시지 청소
         const messages = await channel.bulkDelete(amount, true);
         const embed = new EmbedBuilder()
           .setColor(COLOR_SUCCESS)
@@ -469,13 +471,15 @@ client.on('interactionCreate', async (interaction) => {
           return interaction.editReply({ embeds: [embed] });
         }
 
+        // 카드 배열 섞기
         const cards = ['❌', '❌', '🎉'];
         const shuffled = cards.sort(() => Math.random() - 0.5);
 
+        // 버튼에 셔플된 카드 배열 같이 저장
         const rowButtons = new ActionRowBuilder().addComponents(
           shuffled.map((_, i) =>
             new ButtonBuilder()
-              .setCustomId(`yabawi_${i}_${bet}`)
+              .setCustomId(`yabawi_${i}_${bet}_${shuffled.join(',')}`)
               .setLabel(`카드 ${i + 1}`)
               .setStyle(ButtonStyle.Primary)
           )
@@ -492,13 +496,13 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   // ======================
-  // 버튼 처리 (야바위)
+  // 버튼 처리 (야바위 - 랜덤 유지)
   // ======================
   if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
-    const [_, index, bet] = interaction.customId.split('_');
+    const [_, index, bet, symbols] = interaction.customId.split('_');
     const chosen = parseInt(index);
-    const results = ['❌', '❌', '🎉'];
-    const result = results[chosen];
+    const cardArray = symbols.split(','); // ✅ 셔플된 배열 불러오기
+    const result = cardArray[chosen];
     const nick = interaction.guild?.members.cache.get(interaction.user.id)?.displayName || interaction.user.username;
 
     db.get("SELECT balance FROM users WHERE id = ?", [interaction.user.id], (err, row) => {
@@ -552,3 +556,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
