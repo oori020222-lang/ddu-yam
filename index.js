@@ -65,32 +65,46 @@ client.on('interactionCreate', async (interaction) => {
     if (commandName === '돈내놔') {
       const today = new Date().toDateString();
       db.get("SELECT balance, lastDaily FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
+        const nick = guild.members.cache.get(user.id)?.displayName || user.username;
+
         if (!row) {
           db.run("INSERT INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 20000, ?)", [user.id, guild.id, today]);
+
           const embed = new EmbedBuilder()
             .setColor(0xfee75c)
             .setTitle("🎉 첫 보상 지급 완료! 🎉")
-            .setDescription(`${guild.members.cache.get(user.id)?.displayName || user.username} 님, 환영합니다!`)
-            .addFields(
-              { name: "💰 지급된 코인", value: "20,000 코인", inline: false },
-              { name: "✨ 시작 안내", value: "오늘부터 코인 게임을 즐겨보세요!", inline: false }
+            .setDescription(
+              `${nick} 님, 환영합니다!\n\n` +
+              `**지급된 코인**\n💰 20,000 코인\n\n` +
+              `**시작 안내**\n✨ 오늘부터 코인 게임을 즐겨보세요!`
             )
             .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
           return interaction.editReply({ embeds: [embed] });
         }
+
         if (row.lastDaily === today) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
             .setTitle("⏳ 이미 받음")
-            .setDescription("오늘은 이미 돈을 받았습니다. 내일 다시 시도해주세요!");
+            .setDescription(
+              `${nick} 님,\n\n` +
+              `**오늘은 이미 돈을 받았습니다.**\n내일 다시 시도해주세요!`
+            )
+            .setThumbnail("https://i.imgur.com/kHh3O6g.png");
           return interaction.editReply({ embeds: [embed] });
         }
+
         const newBalance = row.balance + 20000;
         db.run("UPDATE users SET balance = ?, lastDaily = ? WHERE id = ? AND guildId = ?", [newBalance, today, user.id, guild.id]);
+
         const embed = new EmbedBuilder()
           .setColor(COLOR_SUCCESS)
           .setTitle("💸 돈 지급 완료!")
-          .setDescription(`20,000원을 받았습니다!\n현재 잔액: ${fmt(newBalance)}`);
+          .setDescription(
+            `**지급 금액**\n💰 20,000 코인\n\n` +
+            `**현재 잔액**\n${fmt(newBalance)} 코인`
+          )
+          .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -108,57 +122,11 @@ client.on('interactionCreate', async (interaction) => {
           return interaction.editReply({ embeds: [embed] });
         }
 
-        const userNick = guild.members.cache.get(user.id)?.displayName || user.username;
         const embed = new EmbedBuilder()
           .setColor(COLOR_INFO)
           .setTitle("💰 현재 잔액")
-          .setDescription(`${userNick} 님의 보유 코인 현황`)
-          .addFields(
-            { name: "잔액", value: `${fmt(row.balance)} 코인`, inline: false }
-          )
-          .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
+          .setDescription(`${fmt(row.balance)} 코인`);
 
-        interaction.editReply({ embeds: [embed] });
-      });
-    }
-
-    // ======================
-    // /송금
-    // ======================
-    else if (commandName === '송금') {
-      const target = options.getUser('받는사람');
-      const amount = options.getInteger('금액');
-      if (user.id === target.id || amount <= 0) {
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setTitle("❌ 송금 불가")
-          .setDescription("자기 자신에게는 송금할 수 없고 금액은 1 이상이어야 합니다.");
-        return interaction.editReply({ embeds: [embed] });
-      }
-      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, senderRow) => {
-        if (!senderRow || senderRow.balance < amount) {
-          const embed = new EmbedBuilder()
-            .setColor(COLOR_ERROR)
-            .setTitle("❌ 실패")
-            .setDescription("잔액 부족 또는 계정 없음");
-          return interaction.editReply({ embeds: [embed] });
-        }
-        db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
-        db.run("UPDATE users SET balance = balance - ? WHERE id = ? AND guildId = ?", [amount, user.id, guild.id]);
-        db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
-
-        const senderNick = guild.members.cache.get(user.id)?.displayName || user.username;
-        const targetNick = guild.members.cache.get(target.id)?.displayName || target.username;
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_SUCCESS)
-          .setTitle("💸 송금 완료!")
-          .setDescription(`${senderNick} 님이 ${targetNick} 님에게 코인을 송금했습니다.`)
-          .addFields(
-            { name: "보낸 사람", value: senderNick, inline: true },
-            { name: "받는 사람", value: targetNick, inline: true },
-            { name: "송금 금액", value: `${fmt(amount)} 코인`, inline: false }
-          )
-          .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -169,6 +137,7 @@ client.on('interactionCreate', async (interaction) => {
     else if (commandName === '동전던지기') {
       const side = options.getString('선택');
       const bet = options.getInteger('금액');
+
       db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row || bet <= 0 || row.balance < bet) {
           const embed = new EmbedBuilder()
@@ -177,162 +146,75 @@ client.on('interactionCreate', async (interaction) => {
             .setDescription("계정이 없거나 잔액 부족 혹은 금액 오류입니다.");
           return interaction.editReply({ embeds: [embed] });
         }
+
         const result = Math.random() < 0.5 ? '앞면' : '뒷면';
         let newBalance = row.balance;
         let embed;
+
         if (result === side) {
           newBalance += bet;
           embed = new EmbedBuilder()
             .setColor(COLOR_SUCCESS)
-            .setTitle("🎉 동전던지기 성공!")
-            .setDescription(`${guild.members.cache.get(user.id)?.displayName || user.username} 님이 ${side}을 선택했습니다.`)
-            .addFields(
-              { name: "결과", value: result, inline: true },
-              { name: "획득", value: `+${fmt(bet)} 코인`, inline: true },
-              { name: "현재 잔액", value: `${fmt(newBalance)} 코인`, inline: false }
-            )
-            .setThumbnail("https://i.imgur.com/CoinIcon.png");
+            .setTitle(`🎉 ${result}! 승리`)
+            .setDescription(
+              `**획득 금액**\n+${fmt(bet)} 코인\n\n` +
+              `**현재 잔액**\n${fmt(newBalance)} 코인`
+            );
         } else {
           newBalance -= bet;
           embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
-            .setTitle("😢 동전던지기 실패")
-            .setDescription(`${guild.members.cache.get(user.id)?.displayName || user.username} 님이 ${side}을 선택했지만 결과는 ${result}!`)
-            .addFields(
-              { name: "손실", value: `-${fmt(bet)} 코인`, inline: true },
-              { name: "현재 잔액", value: `${fmt(newBalance)} 코인`, inline: false }
-            )
-            .setThumbnail("https://i.imgur.com/CoinIcon.png");
+            .setTitle(`😢 ${result}! 패배`)
+            .setDescription(
+              `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
+              `**현재 잔액**\n${fmt(newBalance)} 코인`
+            );
         }
+
         db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
         interaction.editReply({ embeds: [embed] });
       });
     }
 
     // ======================
-    // /랭킹
+    // /송금
     // ======================
-    else if (commandName === '랭킹') {
-      const type = options.getString('종류');
-      if (type === 'server') {
-        db.all("SELECT id, balance FROM users WHERE guildId = ? AND balance > 0 ORDER BY balance DESC LIMIT 10", [guild.id], (err, rows) => {
-          if (!rows || rows.length === 0) {
-            const embed = new EmbedBuilder()
-              .setColor(COLOR_ERROR)
-              .setTitle("📉 데이터 없음")
-              .setDescription("아직 랭킹에 올라온 사람이 없습니다!");
-            return interaction.editReply({ embeds: [embed] });
-          }
-          let rankMsg = rows.map((row, i) => {
-            const member = guild.members.cache.get(row.id);
-            const name = member?.displayName || row.id;
-            const trophy = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
-            return `${trophy} **${name}** — ${fmt(row.balance)} 코인`;
-          }).join("\n");
-          const embed = new EmbedBuilder()
-            .setColor(0xf1c40f)
-            .setTitle(`⭐ ${guild.name} 서버 TOP 10 랭킹`)
-            .setDescription(rankMsg)
-            .setThumbnail("https://i.imgur.com/Trophy.png");
-          interaction.editReply({ embeds: [embed] });
-        });
-      } else if (type === 'global') {
-        db.all("SELECT id, SUM(balance) as total FROM users GROUP BY id HAVING total > 0 ORDER BY total DESC LIMIT 10", (err, rows) => {
-          if (!rows || rows.length === 0) {
-            const embed = new EmbedBuilder()
-              .setColor(COLOR_ERROR)
-              .setTitle("📉 데이터 없음")
-              .setDescription("아직 글로벌 랭킹에 올라온 사람이 없습니다!");
-            return interaction.editReply({ embeds: [embed] });
-          }
-          let rankMsg = rows.map((row, i) => {
-            const member = client.users.cache.get(row.id);
-            const name = member?.username || row.id;
-            const trophy = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
-            return `${trophy} **${name}** — ${fmt(row.total)} 코인`;
-          }).join("\n");
-          const embed = new EmbedBuilder()
-            .setColor(0xf39c12)
-            .setTitle("🌍 전체 서버 TOP 10 랭킹")
-            .setDescription(rankMsg)
-            .setThumbnail("https://i.imgur.com/Crown.png");
-          interaction.editReply({ embeds: [embed] });
-        });
-      }
-    }
+    else if (commandName === '송금') {
+      const target = options.getUser('받는사람');
+      const amount = options.getInteger('금액');
+      const senderNick = guild.members.cache.get(user.id)?.displayName || user.username;
+      const targetNick = guild.members.cache.get(target.id)?.displayName || target.username;
 
-    // ======================
-    // /청소
-    // ======================
-    else if (commandName === '청소') {
-      const amount = options.getInteger('개수');
-      if (amount < 1 || amount > 100) {
+      if (user.id === target.id || amount <= 0) {
         const embed = new EmbedBuilder()
           .setColor(COLOR_ERROR)
-          .setTitle("❌ 범위 오류")
-          .setDescription("1~100개까지만 삭제할 수 있습니다!");
+          .setTitle("❌ 송금 불가")
+          .setDescription("자기 자신에게는 송금할 수 없고 금액은 1 이상이어야 합니다.");
         return interaction.editReply({ embeds: [embed] });
       }
-      const channel = interaction.channel;
-      const messages = await channel.bulkDelete(amount, true);
-      const embed = new EmbedBuilder()
-        .setColor(COLOR_SUCCESS)
-        .setTitle("🧹 청소 완료")
-        .setDescription(`${messages.size}개의 메시지를 삭제했습니다.`)
-        .setThumbnail("https://i.imgur.com/cleanIcon.png");
-      interaction.editReply({ embeds: [embed] });
-    }
 
-    // ======================
-    // /대박복권
-    // ======================
-    else if (commandName === '대박복권') {
-      let bet = options.getInteger('금액');
-      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-        if (!row || row.balance < bet || bet < 1000) {
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, senderRow) => {
+        if (!senderRow || senderRow.balance < amount) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
             .setTitle("❌ 실패")
-            .setDescription("계정 없음, 잔액 부족, 최소 베팅 1000 이상이어야 합니다.");
+            .setDescription("잔액 부족 또는 계정 없음");
           return interaction.editReply({ embeds: [embed] });
         }
-        const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "💎"];
-        const SLOT_WEIGHTS = [34.9, 30, 20, 10, 5, 0.1];
-        const SLOT_PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10, "💎": 100 };
-        const r = Math.random() * 100;
-        let sum = 0, result = "🥚";
-        for (let i = 0; i < SLOT_SYMBOLS.length; i++) {
-          sum += SLOT_WEIGHTS[i];
-          if (r < sum) { result = SLOT_SYMBOLS[i]; break; }
-        }
-        let payout = SLOT_PAYOUTS[result] ? bet * SLOT_PAYOUTS[result] : 0;
-        const delta = payout - bet;
-        const newBalance = row.balance + delta;
-        db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
-        let embed;
-        if (result === "💎") {
-          embed = new EmbedBuilder()
-            .setColor(0x9b59b6)
-            .setTitle("✨ 초대박! 100배 당첨! ✨")
-            .setDescription(`${guild.members.cache.get(user.id)?.displayName || user.username} 님, 축하합니다!`)
-            .addFields(
-              { name: "결과", value: "💎 다이아몬드", inline: true },
-              { name: "획득 금액", value: `${fmt(payout)} 코인`, inline: true },
-              { name: "순이익", value: `+${fmt(delta)} 코인`, inline: true },
-              { name: "현재 잔액", value: `${fmt(newBalance)} 코인`, inline: false }
-            )
-            .setThumbnail("https://i.imgur.com/yR8M6Xv.png");
-        } else if (payout > 0) {
-          embed = new EmbedBuilder()
-            .setColor(COLOR_SUCCESS)
-            .setTitle(`🎰 당첨! x${SLOT_PAYOUTS[result]}`)
-            .setDescription(`결과: ${result}\n획득: ${fmt(payout)} (순이익 ${delta >= 0 ? "+" : ""}${fmt(delta)})\n현재 잔액: ${fmt(newBalance)}`);
-        } else {
-          embed = new EmbedBuilder()
-            .setColor(COLOR_ERROR)
-            .setTitle("❌ 꽝")
-            .setDescription(`결과: ${result}\n-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
-        }
+
+        db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
+        db.run("UPDATE users SET balance = balance - ? WHERE id = ? AND guildId = ?", [amount, user.id, guild.id]);
+        db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
+
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_SUCCESS)
+          .setTitle("💸 송금 완료!")
+          .setDescription(
+            `**보낸 사람**\n${senderNick}\n\n` +
+            `**받는 사람**\n${targetNick}\n\n` +
+            `**송금 금액**\n💰 ${fmt(amount)} 코인`
+          )
+          .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -368,8 +250,12 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription("관리자 모드가 꺼져 있거나 권한이 없습니다.");
         return interaction.editReply({ embeds: [embed], ephemeral: true });
       }
+
       const target = options.getUser('대상');
       const amount = options.getInteger('금액');
+      const adminNick = guild.members.cache.get(user.id)?.displayName || user.username;
+      const targetNick = guild.members.cache.get(target.id)?.displayName || target.username;
+
       if (amount <= 0) {
         const embed = new EmbedBuilder()
           .setColor(COLOR_ERROR)
@@ -377,21 +263,220 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription("지급 금액은 1 이상이어야 합니다!");
         return interaction.editReply({ embeds: [embed], ephemeral: true });
       }
+
       db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
       db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
-      const adminNick = guild.members.cache.get(user.id)?.displayName || user.username;
-      const targetNick = guild.members.cache.get(target.id)?.displayName || target.username;
+
       const embed = new EmbedBuilder()
         .setColor(COLOR_SUCCESS)
         .setTitle("✅ 관리자 지급 완료")
-        .setDescription("관리자가 코인을 지급했습니다.")
-        .addFields(
-          { name: "보낸 사람", value: `${adminNick} (관리자)`, inline: true },
-          { name: "받는 사람", value: targetNick, inline: true },
-          { name: "지급 금액", value: `${fmt(amount)} 코인`, inline: false }
+        .setDescription(
+          `**보낸 사람**\n${adminNick} (관리자)\n\n` +
+          `**받는 사람**\n${targetNick}\n\n` +
+          `**지급 금액**\n💰 ${fmt(amount)} 코인`
         )
         .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
+
       return interaction.editReply({ embeds: [embed], ephemeral: true });
+    }
+
+    // ======================
+    // /대박복권
+    // ======================
+    else if (commandName === '대박복권') {
+      const bet = options.getInteger('금액');
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
+        if (!row || row.balance < bet || bet < 1000) {
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 실패")
+            .setDescription("계정 없음, 잔액 부족, 최소 베팅 1000 이상이어야 합니다.");
+          return interaction.editReply({ embeds: [embed] });
+        }
+
+        const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "💎"];
+        const SLOT_WEIGHTS = [34.9, 30, 20, 10, 5, 0.1];
+        const SLOT_PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10, "💎": 100 };
+        const r = Math.random() * 100;
+        let sum = 0, result = "🥚";
+        for (let i = 0; i < SLOT_SYMBOLS.length; i++) {
+          sum += SLOT_WEIGHTS[i];
+          if (r < sum) { result = SLOT_SYMBOLS[i]; break; }
+        }
+
+        let payout = SLOT_PAYOUTS[result] ? bet * SLOT_PAYOUTS[result] : 0;
+        const delta = payout - bet;
+        const newBalance = row.balance + delta;
+        db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
+
+        let embed;
+        if (result === "💎") {
+          embed = new EmbedBuilder()
+            .setColor(0x9b59b6)
+            .setTitle("✨ 초대박! 100배 당첨! ✨")
+            .setDescription(
+              `**결과**\n💎 다이아몬드\n\n` +
+              `**획득 금액**\n${fmt(payout)} 코인\n\n` +
+              `**순이익**\n+${fmt(delta)} 코인\n\n` +
+              `**현재 잔액**\n${fmt(newBalance)} 코인`
+            )
+            .setThumbnail("https://i.imgur.com/yR8M6Xv.png");
+        } else {
+          embed = new EmbedBuilder()
+            .setColor(payout > 0 ? COLOR_SUCCESS : COLOR_ERROR)
+            .setTitle(payout > 0 ? `🎰 당첨! x${SLOT_PAYOUTS[result]}` : "❌ 꽝")
+            .setDescription(
+              payout > 0
+                ? `결과: ${result}\n획득: ${fmt(payout)} (순이익 ${delta >= 0 ? "+" : ""}${fmt(delta)})\n현재 잔액: ${fmt(newBalance)}`
+                : `결과: ${result}\n-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`
+            );
+        }
+        interaction.editReply({ embeds: [embed] });
+      });
+    }
+
+    // ======================
+    // /랭킹
+    // ======================
+    else if (commandName === '랭킹') {
+      const type = options.getString('종류');
+
+      if (type === 'server') {
+        db.all("SELECT id, balance FROM users WHERE guildId = ? AND balance > 0 ORDER BY balance DESC LIMIT 10", [guild.id], (err, rows) => {
+          if (!rows || rows.length === 0) {
+            const embed = new EmbedBuilder()
+              .setColor(COLOR_ERROR)
+              .setTitle("📉 데이터 없음");
+            return interaction.editReply({ embeds: [embed] });
+          }
+
+          let rankMsg = rows.map((row, i) => {
+            const member = guild.members.cache.get(row.id);
+            const name = member?.displayName || row.id;
+            const trophy = i < 3 ? "🏆" : `#${i + 1}`;
+            return `${trophy} ${name} — ${fmt(row.balance)} 코인`;
+          }).join("\n");
+
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_INFO)
+            .setTitle(`⭐ ${guild.name} 서버 랭킹`)
+            .setDescription(rankMsg);
+
+          interaction.editReply({ embeds: [embed] });
+        });
+      } else if (type === 'global') {
+        db.all("SELECT id, SUM(balance) as total FROM users GROUP BY id HAVING total > 0 ORDER BY total DESC LIMIT 10", (err, rows) => {
+          if (!rows || rows.length === 0) {
+            const embed = new EmbedBuilder()
+              .setColor(COLOR_ERROR)
+              .setTitle("📉 데이터 없음");
+            return interaction.editReply({ embeds: [embed] });
+          }
+
+          let rankMsg = rows.map((row, i) => {
+            const member = client.users.cache.get(row.id);
+            const name = member?.username || row.id;
+            const trophy = i < 3 ? "🏆" : `#${i + 1}`;
+            return `${trophy} ${name} — ${fmt(row.total)} 코인`;
+          }).join("\n");
+
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_INFO)
+            .setTitle("🏆 전체 서버 랭킹")
+            .setDescription(rankMsg);
+
+          interaction.editReply({ embeds: [embed] });
+        });
+      }
+    }
+
+    // ======================
+    // /청소 (유저 선택 + 전체 삭제)
+    // ======================
+    else if (commandName === '청소') {
+      const amount = options.getInteger('개수');
+      const target = options.getUser('유저');
+
+      if (amount < 1 || amount > 100) {
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 범위 오류")
+          .setDescription("1~100개까지만 삭제할 수 있습니다!");
+        return interaction.editReply({ embeds: [embed] });
+      }
+
+      const channel = interaction.channel;
+
+      if (target) {
+        // 특정 유저 메시지 삭제
+        const messages = await channel.messages.fetch({ limit: 100 });
+        const userMessages = messages.filter(m => m.author.id === target.id).first(amount);
+
+        for (const msg of userMessages) {
+          await msg.delete().catch(() => {});
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_SUCCESS)
+          .setTitle("🧹 청소 완료!")
+          .setDescription(
+            `**대상 유저**\n${target.username}\n\n` +
+            `**삭제된 메시지 수**\n${userMessages.length} 개\n\n` +
+            `**요청자**\n${guild.members.cache.get(user.id)?.displayName || user.username}`
+          )
+          .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
+
+        return interaction.editReply({ embeds: [embed] });
+      } else {
+        // 전체 메시지 청소
+        const messages = await channel.bulkDelete(amount, true);
+
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_SUCCESS)
+          .setTitle("🧹 청소 완료!")
+          .setDescription(
+            `**삭제된 메시지 수**\n${messages.size} 개\n\n` +
+            `**요청자**\n${guild.members.cache.get(user.id)?.displayName || user.username}`
+          )
+          .setThumbnail("https://i.imgur.com/hh4d1ZQ.png");
+
+        return interaction.editReply({ embeds: [embed] });
+      }
+    }
+
+    // ======================
+    // /야바위
+    // ======================
+    else if (commandName === '야바위') {
+      const bet = options.getInteger('금액');
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], async (err, row) => {
+        if (!row || row.balance < bet || bet < 1000) {
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 베팅 실패")
+            .setDescription("계정이 없거나 잔액이 부족하거나 최소 베팅(1000) 미만입니다.");
+          return interaction.editReply({ embeds: [embed] });
+        }
+
+        const cards = ['❌', '❌', '🎉']; // 꽝 2개, 당첨 1개
+        const shuffled = cards.sort(() => Math.random() - 0.5);
+
+        const rowButtons = new ActionRowBuilder().addComponents(
+          shuffled.map((_, i) =>
+            new ButtonBuilder()
+              .setCustomId(`yabawi_${i}_${bet}`)
+              .setLabel(`카드 ${i + 1}`)
+              .setStyle(ButtonStyle.Primary)
+          )
+        );
+
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_INFO)
+          .setTitle("🎲 야바위 게임")
+          .setDescription("3장의 카드 중 하나를 선택하세요!");
+
+        interaction.editReply({ embeds: [embed], components: [rowButtons] });
+      });
     }
   }
 
@@ -403,36 +488,45 @@ client.on('interactionCreate', async (interaction) => {
     const chosen = parseInt(index);
     const results = ['❌', '❌', '🎉'];
     const result = results[chosen];
+
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [interaction.user.id, interaction.guild.id], (err, row) => {
       if (!row || row.balance < bet) {
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setTitle("❌ 오류")
-          .setDescription("잔액이 부족하거나 계정이 없습니다.");
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(COLOR_ERROR)
+              .setTitle("❌ 오류")
+              .setDescription("잔액이 부족하거나 계정이 없습니다.")
+          ],
+          ephemeral: true
+        });
       }
+
       let newBalance = row.balance;
       let embed;
+
       if (result === '🎉') {
         const payout = bet * 3;
         newBalance += (payout - bet);
         embed = new EmbedBuilder()
-          .setColor(0x1abc9c)
-          .setTitle("🎉 야바위 대박! 3배 당첨!")
-          .setDescription(`${guild.members.cache.get(interaction.user.id)?.displayName || interaction.user.username} 님, 축하합니다!`)
-          .addFields(
-            { name: "획득 금액", value: `${fmt(payout)} 코인`, inline: true },
-            { name: "순이익", value: `+${fmt(payout - bet)} 코인`, inline: true },
-            { name: "현재 잔액", value: `${fmt(newBalance)} 코인`, inline: false }
-          )
-          .setThumbnail("https://i.imgur.com/Trophy.png");
+          .setColor(COLOR_SUCCESS)
+          .setTitle("🎉 당첨!")
+          .setDescription(
+            `3배 당첨!\n\n` +
+            `**획득 금액**\n${fmt(payout)} 코인\n\n` +
+            `**현재 잔액**\n${fmt(newBalance)} 코인`
+          );
       } else {
         newBalance -= bet;
         embed = new EmbedBuilder()
           .setColor(COLOR_ERROR)
           .setTitle("❌ 꽝")
-          .setDescription(`-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
+          .setDescription(
+            `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
+            `**현재 잔액**\n${fmt(newBalance)} 코인`
+          );
       }
+
       db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, interaction.user.id, interaction.guild.id]);
       interaction.update({ embeds: [embed], components: [] });
     });
@@ -440,4 +534,3 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
