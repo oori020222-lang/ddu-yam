@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const sqlite3 = require('sqlite3');
 const express = require('express');
 require('dotenv').config();
@@ -21,7 +21,7 @@ const fmt = (n) => Number(n).toLocaleString();
 
 const adminId = "627846998074327051"; // 제작자 ID
 
-// DB 초기화 (guildId 제거, 전 서버 통합 잔액)
+// DB 초기화 (전 서버 통합 잔액)
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -56,7 +56,7 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  await interaction.deferReply({ ephemeral: commandName.startsWith('관리자') });
+  await interaction.deferReply();
 
   // /돈내놔
   if (commandName === '돈내놔') {
@@ -106,7 +106,7 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // /10배복권 (금액: 숫자 or "올인")
+  // /10배복권
   else if (commandName === '10배복권') {
     let betInput = options.getString('금액');
 
@@ -153,7 +153,7 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // /송금
+  // /송금 (Embed 버전)
   else if (commandName === '송금') {
     const target = options.getUser('받는사람');
     const amount = options.getInteger('금액');
@@ -169,60 +169,73 @@ client.on('interactionCreate', async (interaction) => {
       db.run("UPDATE users SET balance = balance - ? WHERE id = ?", [amount, user.id]);
       db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, target.id]);
 
-      interaction.editReply(`💸 ${target.username} 님에게 **${fmt(amount)}** 코인을 송금했습니다!`);
+      const embed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle("💸 송금 완료")
+        .addFields(
+          { name: "보낸 사람", value: `${user.username}`, inline: true },
+          { name: "받은 사람", value: `${target.username}`, inline: true },
+          { name: "송금 금액", value: `${fmt(amount)} 코인`, inline: false }
+        )
+        .setFooter({ text: `요청자: ${user.username}`, iconURL: user.displayAvatarURL() })
+        .setTimestamp();
+
+      interaction.editReply({ embeds: [embed] });
     });
   }
 
-  // /랭킹 (이제 전 서버 통합만)
+  // /랭킹 (서버 닉네임 표시)
   else if (commandName === '랭킹') {
-    db.all("SELECT id, balance FROM users ORDER BY balance DESC LIMIT 10", (err, rows) => {
+    db.all("SELECT id, balance FROM users ORDER BY balance DESC LIMIT 10", async (err, rows) => {
       if (!rows || rows.length === 0) return interaction.editReply("📉 아직 데이터가 없습니다!");
 
-      let rankMsg = rows.map((row, i) => {
-        const userTag = client.users.cache.get(row.id)?.username || row.id;
-        return `#${i+1} 🌍 ${userTag} — ${fmt(row.balance)} 코인`;
-      }).join("\n");
+      let rankMsg = await Promise.all(rows.map(async (row, i) => {
+        const member = await interaction.guild.members.fetch(row.id).catch(() => null);
+        const displayName = member ? member.displayName : (client.users.cache.get(row.id)?.username || row.id);
 
-      interaction.editReply(`**🌍 전체 랭킹 TOP 10**\n${rankMsg}`);
+        return `#${i+1} 🌍 ${displayName} — ${fmt(row.balance)} 코인`;
+      }));
+
+      interaction.editReply(`**🌍 전체 랭킹 TOP 10**\n${rankMsg.join("\n")}`);
     });
   }
 
   // /관리자권한
   else if (commandName === '관리자권한') {
     if (user.id !== adminId) {
-      return interaction.editReply({ content: "❌ 이 명령어는 제작자만 사용할 수 있습니다!", ephemeral: true });
+      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
     }
 
     const state = options.getString('상태');
     if (state === "on") {
       setAdminMode(true);
-      return interaction.editReply({ content: "✅ 관리자 모드를 켰습니다.", ephemeral: true });
+      return interaction.editReply("✅ 관리자 모드를 켰습니다.");
     } else if (state === "off") {
       setAdminMode(false);
-      return interaction.editReply({ content: "❌ 관리자 모드를 껐습니다.", ephemeral: true });
+      return interaction.editReply("❌ 관리자 모드를 껐습니다.");
     }
   }
 
   // /관리자지급
   else if (commandName === '관리자지급') {
     if (user.id !== adminId) {
-      return interaction.editReply({ content: "❌ 이 명령어는 제작자만 사용할 수 있습니다!", ephemeral: true });
+      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
     }
 
     getAdminMode((isOn) => {
       if (!isOn) {
-        return interaction.editReply({ content: "❌ 관리자 모드가 꺼져있습니다. `/관리자권한 on`으로 켜주세요.", ephemeral: true });
+        return interaction.editReply("❌ 관리자 모드가 꺼져있습니다. `/관리자권한 on`으로 켜주세요.");
       }
 
       const target = options.getUser('대상');
       const amount = options.getInteger('금액');
 
-      if (amount <= 0) return interaction.editReply({ content: "❌ 지급 금액은 1 이상이어야 합니다!", ephemeral: true });
+      if (amount <= 0) return interaction.editReply("❌ 지급 금액은 1 이상이어야 합니다!");
 
       db.run("INSERT OR IGNORE INTO users (id, balance, lastDaily) VALUES (?, 0, '')", [target.id]);
       db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, target.id]);
 
-      interaction.editReply({ content: `✅ ${target.username} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`, ephemeral: true });
+      interaction.editReply(`✅ ${target.username} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`);
     });
   }
 
@@ -232,7 +245,7 @@ client.on('interactionCreate', async (interaction) => {
     const targetUser = options.getUser('유저');
 
     if (amount < 1 || amount > 100) {
-      return interaction.editReply({ content: "❌ 1~100개까지만 삭제할 수 있습니다!", ephemeral: true });
+      return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
     }
 
     const channel = interaction.channel;
@@ -242,12 +255,13 @@ client.on('interactionCreate', async (interaction) => {
     if (targetUser) {
       const userMessages = messages.filter(m => m.author.id === targetUser.id);
       deleted = await channel.bulkDelete(userMessages, true);
-      interaction.editReply({ content: `🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`, ephemeral: true });
+      interaction.editReply(`🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`);
     } else {
       deleted = await channel.bulkDelete(messages, true);
-      interaction.editReply({ content: `🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`, ephemeral: true });
+      interaction.editReply(`🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`);
     }
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
