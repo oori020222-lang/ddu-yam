@@ -418,49 +418,50 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    // ──────────────────────
-    // /청소 (유저 선택 + 전체 삭제)
-    // ──────────────────────
-    else if (commandName === '청소') {
-      const amount = options.getInteger('개수');
-      const target = options.getUser('유저');
+   // ──────────────────────
+// /청소 (유저 선택 + 전체 삭제)
+// ──────────────────────
+else if (commandName === '청소') {
+  const amount = options.getInteger('개수');
+  const target = options.getUser('유저');
 
-      if (amount < 1 || amount > 100) {
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setTitle("❌ 범위 오류")
-          .setDescription("1~100개까지만 삭제할 수 있습니다!");
-        return interaction.editReply({ embeds: [embed] });
-      }
+  if (amount < 1 || amount > 100) {
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_ERROR)
+      .setTitle("❌ 범위 오류")
+      .setDescription("1~100개까지만 삭제할 수 있습니다!");
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+  }
 
-      const channel = interaction.channel;
+  const channel = interaction.channel;
+  await interaction.deferReply({ ephemeral: true });
 
-      if (target) {
-        const messages = await channel.messages.fetch({ limit: 100 });
-        const userMessages = messages.filter(m => m.author.id === target.id).first(amount);
+  if (target) {
+    const messages = await channel.messages.fetch({ limit: 100 });
+    const userMessages = messages.filter(m => m.author.id === target.id).first(amount);
 
-        for (const msg of userMessages) {
-          await msg.delete().catch(() => {});
-        }
-
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_SUCCESS)
-          .setTitle("🧹 청소 완료!")
-          .setDescription(
-            `**대상 유저**\n${target.username}\n\n` +
-            `**삭제된 메시지 수**\n${userMessages.length} 개`
-          );
-        return interaction.editReply({ embeds: [embed] });
-      } else {
-        const messages = await channel.bulkDelete(amount, true);
-
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_SUCCESS)
-          .setTitle("🧹 청소 완료!")
-          .setDescription(`**삭제된 메시지 수**\n${messages.size} 개`);
-        return interaction.editReply({ embeds: [embed] });
-      }
+    for (const msg of userMessages) {
+      await msg.delete().catch(() => {});
     }
+
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_SUCCESS)
+      .setTitle("🧹 청소 완료!")
+      .setDescription(
+        `**대상 유저**\n${target.username}\n\n` +
+        `**삭제된 메시지 수**\n${userMessages.length} 개`
+      );
+    return interaction.editReply({ embeds: [embed] });
+  } else {
+    const messages = await channel.bulkDelete(amount, true);
+
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_SUCCESS)
+      .setTitle("🧹 청소 완료!")
+      .setDescription(`**삭제된 메시지 수**\n${messages.size} 개`);
+    return interaction.editReply({ embeds: [embed] });
+  }
+}
 
      // ──────────────────────
     // /야바위 (올인 지원 + 셔플 수정)
