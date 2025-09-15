@@ -35,6 +35,14 @@ const commands = [
         .setRequired(true)),
 
   new SlashCommandBuilder()
+    .setName('야바위')
+    .setDescription('3칸 중 하나를 골라 코인을 뽑아보세요!')
+    .addIntegerOption(option =>
+      option.setName('금액')
+        .setDescription('베팅할 금액 (최소 1000)')
+        .setRequired(true)),
+
+  new SlashCommandBuilder()
     .setName('송금')
     .setDescription('다른 유저에게 코인을 송금합니다.')
     .addUserOption(option =>

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js';
 import sqlite3 from 'sqlite3';
 import express from 'express';
 
@@ -32,25 +32,6 @@ db.run(`
   )
 `);
 
-db.run(`
-  CREATE TABLE IF NOT EXISTS admin (
-    id TEXT PRIMARY KEY,
-    mode INTEGER
-  )
-`);
-
-function getAdminMode(callback) {
-  db.get("SELECT mode FROM admin WHERE id = ?", [adminId], (err, row) => {
-    if (row) callback(row.mode === 1);
-    else callback(false);
-  });
-}
-
-function setAdminMode(state) {
-  db.run("INSERT OR REPLACE INTO admin (id, mode) VALUES (?, ?)", [adminId, state ? 1 : 0]);
-}
-
-// ✅ 최신 이벤트명
 client.once('clientReady', () => {
   console.log(`🤖 ${client.user.tag}로 로그인함`);
 });
@@ -189,8 +170,9 @@ client.on('interactionCreate', async (interaction) => {
 
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
+      // 확률표 (34.9, 30, 20, 10, 5, 0.1)
       const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "💎"];
-      const SLOT_WEIGHTS = [34.1, 30, 20, 10, 5, 0.1];
+      const SLOT_WEIGHTS = [34.9, 30, 20, 10, 5, 0.1];
       const SLOT_PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10, "💎": 100 };
 
       const r = Math.random() * 100;
@@ -240,6 +222,43 @@ client.on('interactionCreate', async (interaction) => {
 
         interaction.editReply({ embeds: [embed] });
       }
+    });
+  }
+
+  // /야바위
+  else if (commandName === '야바위') {
+    const bet = options.getInteger('금액');
+    db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], async (err, row) => {
+      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
+      if (bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
+      if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
+
+      const member = guild.members.cache.get(user.id);
+      const displayName = member ? member.displayName : user.username;
+
+      const slots = ["❌ 꽝", "✨ 2배", "💎 3배"];
+      const result = slots[Math.floor(Math.random() * slots.length)];
+
+      let payout = 0;
+      if (result.includes("2배")) payout = bet * 2;
+      else if (result.includes("3배")) payout = bet * 3;
+
+      const delta = payout - bet;
+      const newBalance = row.balance + delta;
+      db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
+
+      const embed = new EmbedBuilder()
+        .setTitle("🎲 야바위 결과")
+        .setDescription(`${displayName} 님의 선택 결과는... **${result}**`)
+        .addFields(
+          { name: "베팅액", value: `${fmt(bet)} 코인`, inline: true },
+          { name: "변동", value: delta >= 0 ? `+${fmt(delta)} 코인` : `${fmt(delta)} 코인`, inline: true },
+          { name: "현재 잔액", value: `${fmt(newBalance)} 코인`, inline: false }
+        )
+        .setColor(payout > 0 ? 0x00FF00 : 0xFF0000)
+        .setThumbnail(user.displayAvatarURL({ dynamic: true }));
+
+      interaction.editReply({ embeds: [embed] });
     });
   }
 
@@ -361,3 +380,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
