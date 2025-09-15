@@ -57,7 +57,6 @@ client.on('interactionCreate', async (interaction) => {
   const { commandName, options, user, guild } = interaction;
 
   if (interaction.isChatInputCommand()) {
-    // 관리자 명령어는 무조건 나만 보이게
     await interaction.deferReply({ ephemeral: commandName.startsWith("관리자") });
 
     // ======================
@@ -68,16 +67,25 @@ client.on('interactionCreate', async (interaction) => {
       db.get("SELECT balance, lastDaily FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row) {
           db.run("INSERT INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 20000, ?)", [user.id, guild.id, today]);
-          const embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("💸 첫 돈 지급!").setDescription(`20,000원을 지급했습니다!\n현재 잔액: ${fmt(20000)}`);
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_SUCCESS)
+            .setTitle("💸 첫 돈 지급!")
+            .setDescription(`20,000원을 지급했습니다!\n현재 잔액: ${fmt(20000)}`);
           return interaction.editReply({ embeds: [embed] });
         }
         if (row.lastDaily === today) {
-          const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("⏳ 이미 받음").setDescription("오늘은 이미 돈을 받았습니다. 내일 다시 시도해주세요!");
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("⏳ 이미 받음")
+            .setDescription("오늘은 이미 돈을 받았습니다. 내일 다시 시도해주세요!");
           return interaction.editReply({ embeds: [embed] });
         }
         const newBalance = row.balance + 20000;
         db.run("UPDATE users SET balance = ?, lastDaily = ? WHERE id = ? AND guildId = ?", [newBalance, today, user.id, guild.id]);
-        const embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("💸 돈 지급 완료!").setDescription(`20,000원을 받았습니다!\n현재 잔액: ${fmt(newBalance)}`);
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_SUCCESS)
+          .setTitle("💸 돈 지급 완료!")
+          .setDescription(`20,000원을 받았습니다!\n현재 잔액: ${fmt(newBalance)}`);
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -88,10 +96,16 @@ client.on('interactionCreate', async (interaction) => {
     else if (commandName === '잔액') {
       db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row) {
-          const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 계정 없음").setDescription("아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.");
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 계정 없음")
+            .setDescription("아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.");
           return interaction.editReply({ embeds: [embed] });
         }
-        const embed = new EmbedBuilder().setColor(COLOR_INFO).setTitle("💰 현재 잔액").setDescription(`${fmt(row.balance)} 코인`);
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_INFO)
+          .setTitle("💰 현재 잔액")
+          .setDescription(`${fmt(row.balance)} 코인`);
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -104,7 +118,10 @@ client.on('interactionCreate', async (interaction) => {
       const bet = options.getInteger('금액');
       db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row || bet <= 0 || row.balance < bet) {
-          const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 실패").setDescription("계정이 없거나 잔액 부족 혹은 금액 오류입니다.");
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 실패")
+            .setDescription("계정이 없거나 잔액 부족 혹은 금액 오류입니다.");
           return interaction.editReply({ embeds: [embed] });
         }
         const result = Math.random() < 0.5 ? '앞면' : '뒷면';
@@ -112,10 +129,16 @@ client.on('interactionCreate', async (interaction) => {
         let embed;
         if (result === side) {
           newBalance += bet;
-          embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle(`🎉 ${result}! 승리`).setDescription(`+${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
+          embed = new EmbedBuilder()
+            .setColor(COLOR_SUCCESS)
+            .setTitle(`🎉 ${result}! 승리`)
+            .setDescription(`+${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
         } else {
           newBalance -= bet;
-          embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle(`😢 ${result}! 패배`).setDescription(`-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
+          embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle(`😢 ${result}! 패배`)
+            .setDescription(`-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
         }
         db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
         interaction.editReply({ embeds: [embed] });
@@ -129,10 +152,13 @@ client.on('interactionCreate', async (interaction) => {
       const bet = options.getInteger('금액');
       db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], async (err, row) => {
         if (!row || row.balance < bet || bet < 1000) {
-          const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 베팅 실패").setDescription("계정이 없거나 잔액이 부족하거나 최소 베팅(1000) 미만입니다.");
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 베팅 실패")
+            .setDescription("계정이 없거나 잔액이 부족하거나 최소 베팅(1000) 미만입니다.");
           return interaction.editReply({ embeds: [embed] });
         }
-        const cards = ['❌', '❌', '🎉']; // 꽝2, 3배1
+        const cards = ['❌', '❌', '🎉']; 
         const shuffled = cards.sort(() => Math.random() - 0.5);
         const rowButtons = new ActionRowBuilder().addComponents(
           shuffled.map((symbol, i) =>
@@ -142,7 +168,10 @@ client.on('interactionCreate', async (interaction) => {
               .setStyle(ButtonStyle.Primary)
           )
         );
-        const embed = new EmbedBuilder().setColor(COLOR_INFO).setTitle("🎲 야바위 게임").setDescription("3장의 카드 중 하나를 선택하세요!");
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_INFO)
+          .setTitle("🎲 야바위 게임")
+          .setDescription("3장의 카드 중 하나를 선택하세요!");
         interaction.editReply({ embeds: [embed], components: [rowButtons] });
       });
     }
@@ -154,12 +183,18 @@ client.on('interactionCreate', async (interaction) => {
       const target = options.getUser('받는사람');
       const amount = options.getInteger('금액');
       if (user.id === target.id || amount <= 0) {
-        const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 송금 불가").setDescription("자기 자신에게는 송금할 수 없고 금액은 1 이상이어야 합니다.");
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 송금 불가")
+          .setDescription("자기 자신에게는 송금할 수 없고 금액은 1 이상이어야 합니다.");
         return interaction.editReply({ embeds: [embed] });
       }
       db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, senderRow) => {
         if (!senderRow || senderRow.balance < amount) {
-          const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 실패").setDescription("잔액 부족 또는 계정 없음");
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 실패")
+            .setDescription("잔액 부족 또는 계정 없음");
           return interaction.editReply({ embeds: [embed] });
         }
         db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
@@ -167,7 +202,10 @@ client.on('interactionCreate', async (interaction) => {
         db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
         const senderNick = guild.members.cache.get(user.id)?.displayName || user.username;
         const targetNick = guild.members.cache.get(target.id)?.displayName || target.username;
-        const embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("💸 송금 완료").setDescription(`${senderNick} → ${targetNick}\n금액: ${fmt(amount)} 코인`);
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_SUCCESS)
+          .setTitle("💸 송금 완료")
+          .setDescription(`${senderNick} → ${targetNick}\n금액: ${fmt(amount)} 코인`);
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -189,7 +227,10 @@ client.on('interactionCreate', async (interaction) => {
             const trophy = i < 3 ? "🏆" : `#${i + 1}`;
             return `${trophy} ${name} — ${fmt(row.balance)} 코인`;
           }).join("\n");
-          const embed = new EmbedBuilder().setColor(COLOR_INFO).setTitle(`⭐ ${guild.name} 서버 랭킹`).setDescription(rankMsg);
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_INFO)
+            .setTitle(`⭐ ${guild.name} 서버 랭킹`)
+            .setDescription(rankMsg);
           interaction.editReply({ embeds: [embed] });
         });
       } else if (type === 'global') {
@@ -204,7 +245,10 @@ client.on('interactionCreate', async (interaction) => {
             const trophy = i < 3 ? "🏆" : `#${i + 1}`;
             return `${trophy} ${name} — ${fmt(row.total)} 코인`;
           }).join("\n");
-          const embed = new EmbedBuilder().setColor(COLOR_INFO).setTitle("🏆 전체 서버 랭킹").setDescription(rankMsg);
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_INFO)
+            .setTitle("🏆 전체 서버 랭킹")
+            .setDescription(rankMsg);
           interaction.editReply({ embeds: [embed] });
         });
       }
@@ -216,12 +260,18 @@ client.on('interactionCreate', async (interaction) => {
     else if (commandName === '청소') {
       const amount = options.getInteger('개수');
       if (amount < 1 || amount > 100) {
-        const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 범위 오류").setDescription("1~100개까지만 삭제할 수 있습니다!");
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 범위 오류")
+          .setDescription("1~100개까지만 삭제할 수 있습니다!");
         return interaction.editReply({ embeds: [embed] });
       }
       const channel = interaction.channel;
       const messages = await channel.bulkDelete(amount, true);
-      const embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("🧹 청소 완료").setDescription(`${messages.size}개의 메시지를 삭제했습니다.`);
+      const embed = new EmbedBuilder()
+        .setColor(COLOR_SUCCESS)
+        .setTitle("🧹 청소 완료")
+        .setDescription(`${messages.size}개의 메시지를 삭제했습니다.`);
       interaction.editReply({ embeds: [embed] });
     }
 
@@ -232,7 +282,10 @@ client.on('interactionCreate', async (interaction) => {
       let bet = options.getInteger('금액');
       db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row || row.balance < bet || bet < 1000) {
-          const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 실패").setDescription("계정 없음, 잔액 부족, 최소 베팅 1000 이상이어야 합니다.");
+          const embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 실패")
+            .setDescription("계정 없음, 잔액 부족, 최소 베팅 1000 이상이어야 합니다.");
           return interaction.editReply({ embeds: [embed] });
         }
         const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "💎"];
@@ -251,9 +304,15 @@ client.on('interactionCreate', async (interaction) => {
         let embed;
         if (payout > 0) {
           const title = result === "💎" ? "✨ 초대박! 100배 당첨! ✨" : `🎰 당첨! x${SLOT_PAYOUTS[result]}`;
-          embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle(title).setDescription(`결과: ${result}\n획득: ${fmt(payout)} (순이익 ${delta >= 0 ? "+" : ""}${fmt(delta)})\n현재 잔액: ${fmt(newBalance)}`);
+          embed = new EmbedBuilder()
+            .setColor(COLOR_SUCCESS)
+            .setTitle(title)
+            .setDescription(`결과: ${result}\n획득: ${fmt(payout)} (순이익 ${delta >= 0 ? "+" : ""}${fmt(delta)})\n현재 잔액: ${fmt(newBalance)}`);
         } else {
-          embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 꽝").setDescription(`결과: ${result}\n-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
+          embed = new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setTitle("❌ 꽝")
+            .setDescription(`결과: ${result}\n-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
         }
         interaction.editReply({ embeds: [embed] });
       });
@@ -264,12 +323,18 @@ client.on('interactionCreate', async (interaction) => {
     // ======================
     else if (commandName === '관리자권한') {
       if (user.id !== adminId) {
-        const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 권한 없음").setDescription("이 명령어는 관리자만 사용할 수 있습니다!");
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 권한 없음")
+          .setDescription("이 명령어는 관리자만 사용할 수 있습니다!");
         return interaction.editReply({ embeds: [embed], ephemeral: true });
       }
       adminMode = !adminMode;
       const status = adminMode ? '🟢 ON' : '🔴 OFF';
-      const embed = new EmbedBuilder().setColor(adminMode ? COLOR_SUCCESS : COLOR_ERROR).setTitle("⚙️ 관리자 모드 전환").setDescription(`관리자 모드가 ${status} 상태가 되었습니다.`);
+      const embed = new EmbedBuilder()
+        .setColor(adminMode ? COLOR_SUCCESS : COLOR_ERROR)
+        .setTitle("⚙️ 관리자 모드 전환")
+        .setDescription(`관리자 모드가 ${status} 상태가 되었습니다.`);
       return interaction.editReply({ embeds: [embed], ephemeral: true });
     }
 
@@ -278,19 +343,28 @@ client.on('interactionCreate', async (interaction) => {
     // ======================
     else if (commandName === '관리자지급') {
       if (user.id !== adminId || !adminMode) {
-        const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 사용 불가").setDescription("관리자 모드가 꺼져 있거나 권한이 없습니다.");
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 사용 불가")
+          .setDescription("관리자 모드가 꺼져 있거나 권한이 없습니다.");
         return interaction.editReply({ embeds: [embed], ephemeral: true });
       }
       const target = options.getUser('대상');
       const amount = options.getInteger('금액');
       if (amount <= 0) {
-        const embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 금액 오류").setDescription("지급 금액은 1 이상이어야 합니다!");
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 금액 오류")
+          .setDescription("지급 금액은 1 이상이어야 합니다!");
         return interaction.editReply({ embeds: [embed], ephemeral: true });
       }
       db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
       db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
       const targetNick = guild.members.cache.get(target.id)?.displayName || target.username;
-      const embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("✅ 관리자 지급").setDescription(`${targetNick} 님에게 ${fmt(amount)} 코인을 지급했습니다!`);
+      const embed = new EmbedBuilder()
+        .setColor(COLOR_SUCCESS)
+        .setTitle("✅ 관리자 지급")
+        .setDescription(`${targetNick} 님에게 ${fmt(amount)} 코인을 지급했습니다!`);
       return interaction.editReply({ embeds: [embed], ephemeral: true });
     }
   }
@@ -300,20 +374,23 @@ client.on('interactionCreate', async (interaction) => {
   // ======================
   if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
     const [_, index, bet, symbol] = interaction.customId.split('_');
-    const chosen = parseInt(index);
-    const result = symbol; // 카드에 저장된 심볼 그대로 사용
+    const result = symbol;
 
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [interaction.user.id, interaction.guild.id], (err, row) => {
       if (!row || row.balance < bet) {
-        return interaction.reply({
-          embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 오류").setDescription("잔액이 부족하거나 계정이 없습니다.")],
-          ephemeral: true
-        });
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 오류")
+          .setDescription
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 오류")
+          .setDescription("잔액이 부족하거나 계정이 없습니다.");
+        return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
       let newBalance = row.balance;
       let embed;
-
       if (result === '🎉') {
         const payout = bet * 3;
         newBalance += (payout - bet);
@@ -336,4 +413,3 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
