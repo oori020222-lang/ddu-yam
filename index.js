@@ -188,11 +188,11 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // /관리자권한 (제작자 ID만 가능)
+  // /관리자권한 (제작자만 가능)
   else if (commandName === '관리자권한') {
-    const adminId = "627846998074327051"; // ⚡ 본인 디스코드 ID 넣기
+    const adminId = "627846998074327051"; // ⚡ 제작자(당신) ID 고정
     if (user.id !== adminId) {
-      return interaction.editReply("❌ 이 명령어는 관리자(제작자)만 사용할 수 있습니다!");
+      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
     }
 
     const target = options.getUser('대상');
