@@ -1,7 +1,7 @@
-import 'dotenv/config';
-import { Client, GatewayIntentBits } from 'discord.js';
-import sqlite3 from 'sqlite3';
-import express from 'express';
+const { Client, GatewayIntentBits } = require('discord.js');
+const sqlite3 = require('sqlite3');
+const express = require('express');
+require('dotenv').config();
 
 // ======================
 // Render 우회용 웹서버
@@ -30,7 +30,7 @@ db.run(`
   )
 `);
 
-client.once('clientReady', () => {
+client.once('ready', () => {
   console.log(`🤖 ${client.user.tag}로 로그인함`);
 });
 
@@ -88,7 +88,7 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // /10배복권 (꽝 / 2배 / 3배 / 5배 / 10배)
+  // /10배복권
   else if (commandName === '10배복권') {
     const betType = options.getString('베팅방식');
     let bet = options.getInteger('금액');
@@ -104,16 +104,13 @@ client.on('interactionCreate', async (interaction) => {
       if (!bet || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
       if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
-      // 🎰 확률표 (총합 100%)
       const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗"];
-      const SLOT_WEIGHTS = [35, 30, 20, 10, 5];  
-      // 예시: 꽝35% / 2배30% / 3배20% / 5배10% / 10배5%
-
-      const SLOT_PAYOUTS = { 
-        "🐣": 2, 
-        "🐥": 3, 
-        "🐔": 5, 
-        "🍗": 10 
+      const SLOT_WEIGHTS = [35, 30, 20, 10, 5];
+      const SLOT_PAYOUTS = {
+        "🐣": 2,
+        "🐥": 3,
+        "🐔": 5,
+        "🍗": 10
       };
 
       const r = Math.random() * 100;
@@ -191,11 +188,11 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // /관리자권한
+  // /관리자권한 (제작자 ID만 가능)
   else if (commandName === '관리자권한') {
-    const adminId = "여기에_본인_디스코드_ID"; // 본인 Discord ID 넣기
+    const adminId = "627846998074327051"; // ⚡ 본인 디스코드 ID 넣기
     if (user.id !== adminId) {
-      return interaction.editReply("❌ 이 명령어는 관리자만 사용할 수 있습니다!");
+      return interaction.editReply("❌ 이 명령어는 관리자(제작자)만 사용할 수 있습니다!");
     }
 
     const target = options.getUser('대상');
@@ -209,10 +206,10 @@ client.on('interactionCreate', async (interaction) => {
     interaction.editReply(`✅ ${target.username} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`);
   }
 
-  // /청소 (전체 or 특정 유저 선택)
+  // /청소
   else if (commandName === '청소') {
     const amount = options.getInteger('개수');
-    const targetUser = options.getUser('유저'); // 특정 유저 선택 (옵션)
+    const targetUser = options.getUser('유저');
 
     if (amount < 1 || amount > 100) {
       return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
@@ -223,12 +220,10 @@ client.on('interactionCreate', async (interaction) => {
 
     let deleted;
     if (targetUser) {
-      // 특정 유저 메시지 삭제
       const userMessages = messages.filter(m => m.author.id === targetUser.id);
       deleted = await channel.bulkDelete(userMessages, true);
       interaction.editReply(`🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`);
     } else {
-      // 전체 메시지 삭제
       deleted = await channel.bulkDelete(messages, true);
       interaction.editReply(`🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`);
     }
@@ -236,3 +231,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
