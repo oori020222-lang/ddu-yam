@@ -262,27 +262,25 @@ else if (commandName === '관리자지급') {
         let newBalance = row.balance;
         let embed;
 
-        if (result === side) {
-          newBalance += bet;
-          embed = new EmbedBuilder()
-            .setColor(COLOR_SUCCESS)
-            .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-            .setTitle(`🎉 ${result}! 승리`)
-            .setDescription(
-              `**획득 금액**\n+${fmt(bet)} 코인\n\n` +
-              `**현재 잔액**\n${fmt(newBalance)} 코인`
-            );
-        } else {
-          newBalance -= bet;
-          embed = new EmbedBuilder()
-            .setColor(COLOR_ERROR)
-            .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-            .setTitle(`😢 ${result}! 패배`)
-            .setDescription(
-              `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
-              `**현재 잔액**\n${fmt(newBalance)} 코인`
-            );
-        }
+       if (result === side) {
+  newBalance += bet;
+  embed = new EmbedBuilder()
+    .setColor(COLOR_SUCCESS)
+    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+    .setDescription(
+      `${result} 승리 🎉 +${fmt(bet)} 코인\n` +
+      `${nick} | 잔액 ${fmt(newBalance)} 코인`
+    );
+} else {
+  newBalance -= bet;
+  embed = new EmbedBuilder()
+    .setColor(COLOR_ERROR)
+    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+    .setDescription(
+      `${result} 패배 ❌ -${fmt(bet)} 코인\n` +
+      `${nick} | 잔액 ${fmt(newBalance)} 코인`
+    );
+}
 
         db.run("UPDATE users SET balance = ? WHERE id = ?", [newBalance, user.id]);
         interaction.editReply({ embeds: [embed] });
@@ -331,27 +329,31 @@ else if (commandName === '관리자지급') {
         db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, user.id]);
 
         let embed;
-        if (result === "💎") {
-          embed = new EmbedBuilder()
-            .setColor(0x9b59b6)
-            .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-            .setTitle("✨ 초대박! 100배 당첨! ✨")
-            .setDescription(
-              `**결과**\n${result}\n\n` +
-              `**획득 금액**\n${fmt(payout)} 코인\n\n` +
-              `**현재 잔액**\n${fmt(newBal)} 코인`
-            );
-        } else {
-          embed = new EmbedBuilder()
-            .setColor(payout > 0 ? COLOR_SUCCESS : COLOR_ERROR)
-            .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-            .setTitle(payout > 0 ? `🎰 당첨! x${PAYOUTS[result]}` : "❌ 꽝")
-            .setDescription(
-              payout > 0
-                ? `**결과**\n${result}\n\n**획득 금액**\n${fmt(payout)} 코인\n\n**현재 잔액**\n${fmt(newBal)} 코인`
-                : `**결과**\n${result}\n\n**손실 금액**\n-${fmt(bet)} 코인\n\n**현재 잔액**\n${fmt(newBal)} 코인`
-            );
-        }
+       if (result === "💎") {
+  embed = new EmbedBuilder()
+    .setColor(0x9b59b6)
+    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+    .setDescription(
+      `${result} 초대박! x100배 ✨ +${fmt(payout)} 코인\n` +
+      `${nick} | 잔액 ${fmt(newBal)} 코인`
+    );
+} else if (payout > 0) {
+  embed = new EmbedBuilder()
+    .setColor(COLOR_SUCCESS)
+    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+    .setDescription(
+      `${result} 당첨! x${PAYOUTS[result]}배 🎰 +${fmt(payout)} 코인\n` +
+      `${nick} | 잔액 ${fmt(newBal)} 코인`
+    );
+} else {
+  embed = new EmbedBuilder()
+    .setColor(COLOR_ERROR)
+    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+    .setDescription(
+      `${result} 꽝 ❌ -${fmt(bet)} 코인\n` +
+      `${nick} | 잔액 ${fmt(newBal)} 코인`
+    );
+}
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -533,29 +535,26 @@ else if (commandName === '관리자지급') {
       let newBal = row.balance;
       let embed;
 
-      if (result === '🎉') {
-        const payout = bet * 3;
-        newBal += (payout - bet);
-        embed = new EmbedBuilder()
-          .setColor(COLOR_SUCCESS)
-          .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-          .setTitle("🎉 당첨!")
-          .setDescription(
-            `3배 당첨!\n\n` +
-            `**획득 금액**\n${fmt(payout)} 코인\n\n` +
-            `**현재 잔액**\n${fmt(newBal)} 코인`
-          );
-      } else {
-        newBal -= bet;
-        embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-          .setTitle("❌ 꽝")
-          .setDescription(
-            `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
-            `**현재 잔액**\n${fmt(newBal)} 코인`
-          );
-      }
+     if (result === '🎉') {
+  const payout = bet * 3;
+  newBal += (payout - bet);
+  embed = new EmbedBuilder()
+    .setColor(COLOR_SUCCESS)
+    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+    .setDescription(
+      `${result} 당첨! x3배 🎉 +${fmt(payout)} 코인\n` +
+      `${nick} | 잔액 ${fmt(newBal)} 코인`
+    );
+} else {
+  newBal -= bet;
+  embed = new EmbedBuilder()
+    .setColor(COLOR_ERROR)
+    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+    .setDescription(
+      `${result} 꽝 ❌ -${fmt(bet)} 코인\n` +
+      `${nick} | 잔액 ${fmt(newBal)} 코인`
+    );
+}
 
       db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, interaction.user.id]);
       interaction.update({ embeds: [embed], components: [] });
