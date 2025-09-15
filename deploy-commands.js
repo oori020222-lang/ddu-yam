@@ -32,13 +32,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('랭킹')
-    .setDescription('랭킹을 확인합니다.')
-    .addStringOption(option =>
-      option.setName('종류').setDescription('서버 랭킹 또는 전체 랭킹').setRequired(true)
-        .addChoices(
-          { name: '서버 랭킹', value: 'server' },
-          { name: '전체 랭킹', value: 'global' }
-        )),
+    .setDescription('전체 서버 랭킹 TOP 10을 확인합니다.'),
 
   new SlashCommandBuilder()
     .setName('청소')
@@ -85,3 +79,5 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     console.error(err);
   }
 })();
+
+
