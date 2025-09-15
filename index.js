@@ -480,7 +480,7 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // ======================
+   // ======================
   // 버튼 처리 (야바위)
   // ======================
   if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
@@ -491,14 +491,14 @@ client.on('interactionCreate', async (interaction) => {
 
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [interaction.user.id, interaction.guild.id], (err, row) => {
       if (!row || row.balance < bet) {
-        return interaction.reply({
+        return interaction.update({
           embeds: [
             new EmbedBuilder()
               .setColor(COLOR_ERROR)
               .setTitle("❌ 오류")
               .setDescription("잔액이 부족하거나 계정이 없습니다.")
           ],
-          ephemeral: true
+          components: [] // 버튼 제거
         });
       }
 
