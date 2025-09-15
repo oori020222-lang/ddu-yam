@@ -172,64 +172,64 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ──────────────────────
-    // 관리자권한
-    // ──────────────────────
-    else if (commandName === '관리자권한') {
-      if (user.id !== adminId) {
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-          .setTitle("❌ 권한 없음")
-          .setDescription("이 명령어는 관리자만 사용할 수 있습니다!");
-        return interaction.editReply({ embeds: [embed], ephemeral: true });
-      }
-      adminMode = !adminMode;
-      const embed = new EmbedBuilder()
-        .setColor(adminMode ? COLOR_SUCCESS : COLOR_ERROR)
-        .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-        .setTitle("⚙️ 관리자 모드 전환")
-        .setDescription(`관리자 모드가 ${adminMode ? '🟢 ON' : '🔴 OFF'} 상태가 되었습니다.`);
-      return interaction.editReply({ embeds: [embed], ephemeral: true });
-    }
+  // ──────────────────────
+// /관리자권한
+// ──────────────────────
+else if (commandName === '관리자권한') {
+  if (user.id !== adminId) {
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_ERROR)
+      .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+      .setTitle("❌ 권한 없음")
+      .setDescription("이 명령어는 관리자만 사용할 수 있습니다!");
+    return interaction.editReply({ embeds: [embed], ephemeral: true });
+  }
+  adminMode = !adminMode;
+  const embed = new EmbedBuilder()
+    .setColor(adminMode ? COLOR_SUCCESS : COLOR_ERROR)
+    .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
+    .setTitle("⚙️ 관리자 모드 전환")
+    .setDescription(`관리자 모드가 ${adminMode ? '🟢 ON' : '🔴 OFF'} 상태가 되었습니다.`);
+  return interaction.editReply({ embeds: [embed], ephemeral: true });
+}
 
-    // ──────────────────────
-    // 관리자지급
-    // ──────────────────────
-    else if (commandName === '관리자지급') {
-      if (user.id !== adminId || !adminMode) {
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setAuthor({ name: "보낸 사람: 관리자", iconURL: avatar(guild, user.id) })
-          .setTitle("❌ 사용 불가")
-          .setDescription("관리자 모드가 꺼져 있거나 권한이 없습니다.");
-        return interaction.editReply({ embeds: [embed], ephemeral: true });
-      }
+// ──────────────────────
+// /관리자지급
+// ──────────────────────
+else if (commandName === '관리자지급') {
+  if (user.id !== adminId || !adminMode) {
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_ERROR)
+      .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
+      .setTitle("❌ 사용 불가")
+      .setDescription("관리자 모드가 꺼져 있거나 권한이 없습니다.");
+    return interaction.editReply({ embeds: [embed], ephemeral: true });
+  }
 
-      const target = options.getUser('유저');
-      const amount = options.getInteger('금액');
-      if (!target || amount <= 0) {
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setAuthor({ name: "보낸 사람: 관리자", iconURL: avatar(guild, user.id) })
-          .setTitle("❌ 금액 오류")
-          .setDescription("지급 금액은 1 이상이어야 합니다!");
-        return interaction.editReply({ embeds: [embed], ephemeral: true });
-      }
+  const target = options.getUser('유저');
+  const amount = options.getInteger('금액');
+  if (!target || amount <= 0) {
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_ERROR)
+      .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
+      .setTitle("❌ 금액 오류")
+      .setDescription("지급 금액은 1 이상이어야 합니다!");
+    return interaction.editReply({ embeds: [embed], ephemeral: true });
+  }
 
-      db.run("INSERT OR IGNORE INTO users (id, balance, lastDaily) VALUES (?, 0, '')", [target.id]);
-      db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, target.id]);
+  db.run("INSERT OR IGNORE INTO users (id, balance, lastDaily) VALUES (?, 0, '')", [target.id]);
+  db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, target.id]);
 
-      const embed = new EmbedBuilder()
-        .setColor(COLOR_ADMIN)
-        .setAuthor({ name: "보낸 사람: 관리자", iconURL: avatar(guild, user.id) })
-        .setTitle("💌 관리자 지급 완료 💌")
-        .setDescription(
-          `**받는 사람**\n<@${target.id}>\n\n` +
-          `**지급 금액**\n💰 ${fmt(amount)} 코인`
-        );
-      return interaction.editReply({ embeds: [embed], ephemeral: true });
-    }
+  const embed = new EmbedBuilder()
+    .setColor(COLOR_ADMIN)
+    .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
+    .setTitle("💌 관리자 지급 완료 💌")
+    .setDescription(
+      `**받는 사람**\n<@${target.id}>\n\n` +
+      `**지급 금액**\n💰 ${fmt(amount)} 코인`
+    );
+  return interaction.editReply({ embeds: [embed], ephemeral: true });
+}
 
     // ──────────────────────
     // 동전던지기 (올인 지원)
