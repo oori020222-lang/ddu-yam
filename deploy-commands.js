@@ -1,4 +1,4 @@
-import { REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import 'dotenv/config';
 
 const commands = [
@@ -76,7 +76,8 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('관리자권한')
-    .setDescription('관리자 모드를 ON/OFF 전환합니다.'),
+    .setDescription('관리자 모드를 ON/OFF 전환합니다.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),  // 관리자만 보임
 
   new SlashCommandBuilder()
     .setName('관리자지급')
@@ -88,7 +89,8 @@ const commands = [
     .addIntegerOption(option =>
       option.setName('금액')
         .setDescription('지급할 금액')
-        .setRequired(true)),
+        .setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),  // 관리자만 보임
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -102,3 +104,4 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     console.error(err);
   }
 })();
+
