@@ -27,18 +27,19 @@ const client = new Client({
 const db = new sqlite3.Database('./database.db');
 const fmt = (n) => Number(n).toLocaleString();
 
-// 유저 아바타 가져오기 (서버 닉 우선)
+// 아바타 가져오기
 const avatar = (guild, uid) =>
   guild.members.cache.get(uid)?.displayAvatarURL({ extension: 'png', size: 64 }) ||
   client.users.cache.get(uid)?.displayAvatarURL({ extension: 'png', size: 64 });
 
-// DB 초기화
+// DB 초기화 (guildId 추가)
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT,
+    guildId TEXT,
     balance INTEGER,
     lastDaily TEXT,
-    PRIMARY KEY (id)
+    PRIMARY KEY (id, guildId)
   )
 `);
 
@@ -70,9 +71,9 @@ client.on('interactionCreate', async (interaction) => {
     // ──────────────────────
     if (commandName === '돈내놔') {
       const today = new Date().toDateString();
-      db.get("SELECT balance, lastDaily FROM users WHERE id = ?", [user.id], (err, row) => {
+      db.get("SELECT balance, lastDaily FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row) {
-          db.run("INSERT INTO users (id, balance, lastDaily) VALUES (?, 20000, ?)", [user.id, today]);
+          db.run("INSERT INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 20000, ?)", [user.id, guild.id, today]);
           const embed = new EmbedBuilder()
             .setColor(0xfee75c)
             .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
@@ -94,7 +95,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         const newBalance = row.balance + 20000;
-        db.run("UPDATE users SET balance = ?, lastDaily = ? WHERE id = ?", [newBalance, today, user.id]);
+        db.run("UPDATE users SET balance = ?, lastDaily = ? WHERE id = ? AND guildId = ?", [newBalance, today, user.id, guild.id]);
 
         const embed = new EmbedBuilder()
           .setColor(COLOR_SUCCESS)
@@ -112,7 +113,7 @@ client.on('interactionCreate', async (interaction) => {
     // /잔액
     // ──────────────────────
     else if (commandName === '잔액') {
-      db.get("SELECT balance FROM users WHERE id = ?", [user.id], (err, row) => {
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
@@ -133,13 +134,13 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // ──────────────────────
-    // /동전던지기 (올인 지원, 순이익 제거)
+    // /동전던지기 (올인 지원)
     // ──────────────────────
     else if (commandName === '동전던지기') {
       const side = options.getString('선택');
       const betInput = options.getString('금액');
 
-      db.get("SELECT balance FROM users WHERE id = ?", [user.id], (err, row) => {
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
@@ -161,8 +162,8 @@ client.on('interactionCreate', async (interaction) => {
 
         const result = Math.random() < 0.5 ? '앞면' : '뒷면';
         let newBalance = row.balance;
-        let embed;
 
+        let embed;
         if (result === side) {
           newBalance += bet;
           embed = new EmbedBuilder()
@@ -185,7 +186,7 @@ client.on('interactionCreate', async (interaction) => {
             );
         }
 
-        db.run("UPDATE users SET balance = ? WHERE id = ?", [newBalance, user.id]);
+        db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -205,7 +206,7 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply({ embeds: [embed] });
       }
 
-      db.get("SELECT balance FROM users WHERE id = ?", [user.id], (err, senderRow) => {
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, senderRow) => {
         if (!senderRow || senderRow.balance < amount) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
@@ -215,9 +216,9 @@ client.on('interactionCreate', async (interaction) => {
           return interaction.editReply({ embeds: [embed] });
         }
 
-        db.run("INSERT OR IGNORE INTO users (id, balance, lastDaily) VALUES (?, 0, '')", [target.id]);
-        db.run("UPDATE users SET balance = balance - ? WHERE id = ?", [amount, user.id]);
-        db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, target.id]);
+        db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
+        db.run("UPDATE users SET balance = balance - ? WHERE id = ? AND guildId = ?", [amount, user.id, guild.id]);
+        db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
 
         const embed = new EmbedBuilder()
           .setColor(COLOR_SUCCESS)
@@ -276,8 +277,8 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply({ embeds: [embed], ephemeral: true });
       }
 
-      db.run("INSERT OR IGNORE INTO users (id, balance, lastDaily) VALUES (?, 0, '')", [target.id]);
-      db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, target.id]);
+      db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
+      db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
 
       const embed = new EmbedBuilder()
         .setColor(COLOR_ADMIN)
@@ -291,12 +292,12 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // ──────────────────────
-    // /대박복권 (올인 지원 + 순이익 제거)
+    // /대박복권 (올인 지원, 순이익 제거)
     // ──────────────────────
     else if (commandName === '대박복권') {
       const betInput = options.getString('금액');
 
-      db.get("SELECT balance FROM users WHERE id = ?", [user.id], (err, row) => {
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
         if (!row) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
@@ -329,7 +330,7 @@ client.on('interactionCreate', async (interaction) => {
 
         const payout = PAYOUTS[result] ? bet * PAYOUTS[result] : 0;
         const newBal = row.balance + (payout - bet);
-        db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, user.id]);
+        db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBal, user.id, guild.id]);
 
         let embed;
         if (result === "💎") {
@@ -358,59 +359,62 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // ──────────────────────
-    // /랭킹 (서버/전체, 닉네임만)
+    // /랭킹 (서버/전체 통합)
     // ──────────────────────
     else if (commandName === '랭킹') {
       const type = options.getString('종류');
 
       if (type === 'server') {
-        db.all("SELECT id, balance FROM users WHERE balance > 0 ORDER BY balance DESC LIMIT 10", (err, rows) => {
-          if (!rows || rows.length === 0) {
+        db.all("SELECT id, balance FROM users WHERE guildId = ? AND balance > 0 ORDER BY balance DESC LIMIT 10",
+          [guild.id],
+          (err, rows) => {
+            if (!rows || rows.length === 0) {
+              const embed = new EmbedBuilder()
+                .setColor(COLOR_ERROR)
+                .setTitle("📉 데이터 없음");
+              return interaction.editReply({ embeds: [embed] });
+            }
+
+            let rankMsg = rows.map((row, i) => {
+              const member = guild.members.cache.get(row.id);
+              const name = member?.displayName || row.id;
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
+              return `${medal} ${name} — ${fmt(row.balance)} 코인`;
+            }).join("\n");
+
             const embed = new EmbedBuilder()
-              .setColor(COLOR_ERROR)
-              .setTitle("📉 데이터 없음");
-            return interaction.editReply({ embeds: [embed] });
-          }
+              .setColor(COLOR_INFO)
+              .setTitle(`⭐ ${guild.name} 서버 랭킹`)
+              .setDescription(rankMsg);
 
-          let rankMsg = rows.map((row, i) => {
-            const member = guild.members.cache.get(row.id);
-            const name = member?.displayName || row.id;
-            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
-            return `${medal} ${name} — ${fmt(row.balance)} 코인`;
-          }).join("\n");
-
-          const embed = new EmbedBuilder()
-            .setColor(COLOR_INFO)
-            .setTitle(`⭐ ${guild.name} 서버 랭킹`)
-            .setDescription(rankMsg);
-
-          interaction.editReply({ embeds: [embed] });
-        });
+            interaction.editReply({ embeds: [embed] });
+          });
       }
 
       else if (type === 'global') {
-        db.all("SELECT id, SUM(balance) as total FROM users GROUP BY id HAVING total > 0 ORDER BY total DESC LIMIT 10", (err, rows) => {
-          if (!rows || rows.length === 0) {
+        db.all("SELECT id, SUM(balance) as total FROM users GROUP BY id HAVING total > 0 ORDER BY total DESC LIMIT 10",
+          (err, rows) => {
+            if (!rows || rows.length === 0) {
+              const embed = new EmbedBuilder()
+                .setColor(COLOR_ERROR)
+                .setTitle("📉 데이터 없음");
+              return interaction.editReply({ embeds: [embed] });
+            }
+
+            let rankMsg = rows.map((row, i) => {
+              const member = client.users.cache.get(row.id);
+              const name = member?.username || row.id;
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
+              return `${medal} ${name} — ${fmt(row.total)} 코인`;
+            }).join("\n");
+
             const embed = new EmbedBuilder()
-              .setColor(COLOR_ERROR)
-              .setTitle("📉 데이터 없음");
-            return interaction.editReply({ embeds: [embed] });
-          }
+              .setColor(COLOR_INFO)
+              .setTitle("🏆 전체 서버 랭킹")
+              .setDescription(rankMsg);
 
-          let rankMsg = rows.map((row, i) => {
-            const member = client.users.cache.get(row.id);
-            const name = member?.username || row.id;
-            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
-            return `${medal} ${name} — ${fmt(row.total)} 코인`;
-          }).join("\n");
-
-          const embed = new EmbedBuilder()
-            .setColor(COLOR_INFO)
-            .setTitle("🏆 전체 서버 랭킹")
-            .setDescription(rankMsg);
-
-          interaction.editReply({ embeds: [embed] });
-        });
+            interaction.editReply({ embeds: [embed] });
+          });
       }
     }
 
@@ -463,7 +467,7 @@ client.on('interactionCreate', async (interaction) => {
     // ──────────────────────
     else if (commandName === '야바위') {
       const betInput = options.getString('금액');
-      db.get("SELECT balance FROM users WHERE id = ?", [user.id], async (err, row) => {
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], async (err, row) => {
         if (!row) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
@@ -483,13 +487,21 @@ client.on('interactionCreate', async (interaction) => {
           return interaction.editReply({ embeds: [embed] });
         }
 
-        const cards = ['❌', '❌', '🎉'];
-        const shuffled = cards.sort(() => Math.random() - 0.5);
+    // Fisher-Yates 셔플 함수
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+  const cards = shuffle(['❌', '❌', '🎉']); // 꽝 2개, 당첨 1개
 
         const rowButtons = new ActionRowBuilder().addComponents(
-          shuffled.map((_, i) =>
+           cards.map((_, i) =>
             new ButtonBuilder()
-              .setCustomId(`yabawi_${i}_${bet}`)
+              .setCustomId(`yabawi_${i}_${bet}_${cards[i]}`)
               .setLabel(`카드 ${i + 1}`)
               .setStyle(ButtonStyle.Primary)
           )
@@ -505,61 +517,57 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // ──────────────────────
-  // 버튼 처리 (야바위)
-  // ──────────────────────
-  if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
-    const [_, index, bet] = interaction.customId.split('_');
-    const chosen = parseInt(index);
-    const results = ['❌', '❌', '🎉'];
-    const result = results[chosen];
+// ──────────────────────
+// 버튼 처리 (야바위)
+// ──────────────────────
+if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
+  const [_, index, bet, symbol] = interaction.customId.split('_');
+  const chosen = parseInt(index);
 
-    db.get("SELECT balance FROM users WHERE id = ?", [interaction.user.id], (err, row) => {
-      if (!row || row.balance < bet) {
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(COLOR_ERROR)
-              .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-              .setTitle("❌ 오류")
-              .setDescription("잔액이 부족하거나 계정이 없습니다.")
-          ],
-          ephemeral: true
-        });
-      }
+  db.get("SELECT balance FROM users WHERE id = ?", [interaction.user.id], (err, row) => {
+    if (!row || row.balance < bet) {
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+            .setTitle("❌ 오류")
+            .setDescription("잔액이 부족하거나 계정이 없습니다.")
+        ],
+        ephemeral: true
+      });
+    }
 
-      let newBal = row.balance;
-      let embed;
+    let newBal = row.balance;
+    let embed;
 
-      if (result === '🎉') {
-        const payout = bet * 3;
-        newBal += (payout - bet);
-        embed = new EmbedBuilder()
-          .setColor(COLOR_SUCCESS)
-          .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-          .setTitle("🎉 당첨!")
-          .setDescription(
-            `3배 당첨!\n\n` +
-            `**획득 금액**\n${fmt(payout)} 코인\n\n` +
-            `**현재 잔액**\n${fmt(newBal)} 코인`
-          );
-      } else {
-        newBal -= bet;
-        embed = new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-          .setTitle("❌ 꽝")
-          .setDescription(
-            `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
-            `**현재 잔액**\n${fmt(newBal)} 코인`
-          );
-      }
+    if (symbol === '🎉') {
+      const payout = bet * 3;
+      newBal += (payout - bet);
+      embed = new EmbedBuilder()
+        .setColor(COLOR_SUCCESS)
+        .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+        .setTitle("🎉 당첨!")
+        .setDescription(
+          `3배 당첨!\n\n` +
+          `**획득 금액**\n${fmt(payout)} 코인\n\n` +
+          `**현재 잔액**\n${fmt(newBal)} 코인`
+        );
+    } else {
+      newBal -= bet;
+      embed = new EmbedBuilder()
+        .setColor(COLOR_ERROR)
+        .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+        .setTitle("❌ 꽝")
+        .setDescription(
+          `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
+          `**현재 잔액**\n${fmt(newBal)} 코인`
+        );
+    }
 
-      db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, interaction.user.id]);
-      interaction.update({ embeds: [embed], components: [] });
-    });
-  }
-});
+    db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, interaction.user.id]);
+    interaction.update({ embeds: [embed], components: [] });
+  });
+}
 
 client.login(process.env.DISCORD_TOKEN);
-

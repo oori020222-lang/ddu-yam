@@ -1,6 +1,9 @@
-import { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 import 'dotenv/config';
 
+// ──────────────────────
+// Slash Commands 정의
+// ──────────────────────
 const commands = [
   new SlashCommandBuilder()
     .setName('돈내놔')
@@ -19,11 +22,11 @@ const commands = [
         .setRequired(true)
         .addChoices(
           { name: '앞면', value: '앞면' },
-          { name: '뒷면', value: '뒷면' },
+          { name: '뒷면', value: '뒷면' }
         ))
     .addStringOption(option =>
       option.setName('금액')
-        .setDescription('베팅 금액 또는 "올인" 입력')
+        .setDescription('베팅 금액 (숫자 또는 "올인")')
         .setRequired(true)),
 
   new SlashCommandBuilder()
@@ -31,7 +34,7 @@ const commands = [
     .setDescription('3장의 카드 중 하나를 선택해보세요!')
     .addStringOption(option =>
       option.setName('금액')
-        .setDescription('베팅 금액 (최소 1000) 또는 "올인" 입력')
+        .setDescription('베팅 금액 (숫자 또는 "올인", 최소 1000)')
         .setRequired(true)),
 
   new SlashCommandBuilder()
@@ -39,7 +42,7 @@ const commands = [
     .setDescription('치킨 복권! 최대 100배 보상!')
     .addStringOption(option =>
       option.setName('금액')
-        .setDescription('베팅 금액 (최소 1000) 또는 "올인" 입력')
+        .setDescription('베팅 금액 (숫자 또는 "올인", 최소 1000)')
         .setRequired(true)),
 
   new SlashCommandBuilder()
@@ -55,12 +58,16 @@ const commands = [
         .setRequired(true)),
 
   new SlashCommandBuilder()
-    .setName('서버랭킹')
-    .setDescription('이 서버의 코인 랭킹을 확인합니다.'),
-
-  new SlashCommandBuilder()
-    .setName('전체랭킹')
-    .setDescription('전체 서버 코인 랭킹을 확인합니다.'),
+    .setName('랭킹')
+    .setDescription('랭킹을 확인합니다.')
+    .addStringOption(option =>
+      option.setName('종류')
+        .setDescription('서버 랭킹 또는 전체 랭킹')
+        .setRequired(true)
+        .addChoices(
+          { name: '서버 랭킹', value: 'server' },
+          { name: '전체 랭킹', value: 'global' }
+        )),
 
   new SlashCommandBuilder()
     .setName('청소')
@@ -71,13 +78,11 @@ const commands = [
         .setRequired(true))
     .addUserOption(option =>
       option.setName('유저')
-        .setDescription('특정 유저 메시지만 삭제 (선택사항)')
-        .setRequired(false)),
+        .setDescription('특정 유저 메시지만 삭제할 경우 선택')),
 
   new SlashCommandBuilder()
     .setName('관리자권한')
-    .setDescription('관리자 모드를 ON/OFF 전환합니다.')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),  // 관리자만 보임
+    .setDescription('관리자 모드를 ON/OFF 전환합니다.'),
 
   new SlashCommandBuilder()
     .setName('관리자지급')
@@ -89,10 +94,12 @@ const commands = [
     .addIntegerOption(option =>
       option.setName('금액')
         .setDescription('지급할 금액')
-        .setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),  // 관리자만 보임
+        .setRequired(true)),
 ].map(cmd => cmd.toJSON());
 
+// ──────────────────────
+// REST API 요청
+// ──────────────────────
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
@@ -104,4 +111,3 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     console.error(err);
   }
 })();
-
