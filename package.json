@@ -5,9 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",            // 봇 실행
-    "deploy": "node deploy-commands.js", // 명령어 등록
-    "build": "npm install && npm run deploy" // Render 배포 시 실행
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js",
+    "build": "npm install && npm run deploy"
   },
   "dependencies": {
     "discord.js": "^14.15.3",
