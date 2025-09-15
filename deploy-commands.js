@@ -18,9 +18,9 @@ const commands = [
     .setName('10배복권')
     .setDescription('치킨 복권! 최대 10배 보상!')
     .addStringOption(option =>
-      option.setName('베팅방식').setDescription('"all" 입력 시 올인').setRequired(false))
-    .addIntegerOption(option =>
-      option.setName('금액').setDescription('베팅 금액').setRequired(false)),
+      option.setName('금액')
+        .setDescription('베팅 금액 (숫자 또는 "올인" 입력 시 전액 올인)')
+        .setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('송금')
@@ -85,4 +85,3 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     console.error(err);
   }
 })();
-

@@ -39,18 +39,13 @@ db.run(`
   )
 `);
 
-// 관리자 모드 가져오기
 function getAdminMode(callback) {
   db.get("SELECT mode FROM admin WHERE id = ?", [adminId], (err, row) => {
-    if (row) {
-      callback(row.mode === 1);
-    } else {
-      callback(false);
-    }
+    if (row) callback(row.mode === 1);
+    else callback(false);
   });
 }
 
-// 관리자 모드 설정
 function setAdminMode(state) {
   db.run("INSERT OR REPLACE INTO admin (id, mode) VALUES (?, ?)", [adminId, state ? 1 : 0]);
 }
@@ -63,7 +58,7 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  await interaction.deferReply({ ephemeral: true }); // 모든 응답은 관리자만 보이게
+  await interaction.deferReply({ ephemeral: commandName.startsWith('관리자') });
 
   // /돈내놔
   if (commandName === '돈내놔') {
@@ -113,30 +108,26 @@ client.on('interactionCreate', async (interaction) => {
     });
   }
 
-  // /10배복권
+  // /10배복권 (금액: 숫자 or "올인")
   else if (commandName === '10배복권') {
-    const betType = options.getString('베팅방식');
-    let bet = options.getInteger('금액');
+    let betInput = options.getString('금액');
 
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
       if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
 
-      if (betType === "all") {
+      let bet;
+      if (betInput === "올인") {
         bet = row.balance;
         if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
+      } else {
+        bet = parseInt(betInput, 10);
+        if (isNaN(bet) || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
+        if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
       }
-
-      if (!bet || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
-      if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
 
       const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗"];
       const SLOT_WEIGHTS = [35, 30, 20, 10, 5];
-      const SLOT_PAYOUTS = {
-        "🐣": 2,
-        "🐥": 3,
-        "🐔": 5,
-        "🍗": 10
-      };
+      const SLOT_PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10 };
 
       const r = Math.random() * 100;
       let sum = 0, result = "🥚";
@@ -229,7 +220,7 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // /관리자지급 (관리자 모드 켜져 있을 때만 실행, 관리자만 보임)
+  // /관리자지급
   else if (commandName === '관리자지급') {
     if (user.id !== adminId) {
       return interaction.editReply({ content: "❌ 이 명령어는 제작자만 사용할 수 있습니다!", ephemeral: true });
