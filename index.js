@@ -19,6 +19,8 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const db = new sqlite3.Database('./database.db');
 const fmt = (n) => Number(n).toLocaleString();
 
+let adminMode = false; // 관리자 모드 상태 저장
+
 // DB 초기화
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
@@ -188,11 +190,31 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // /관리자권한 (제작자만 가능)
+  // /관리자권한 (on/off)
   else if (commandName === '관리자권한') {
-    const adminId = "627846998074327051"; // ⚡ 제작자(당신) ID 고정
+    const adminId = "627846998074327051"; // 제작자 ID
     if (user.id !== adminId) {
       return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
+    }
+
+    const state = options.getString('상태'); // on/off
+    if (state === "on") {
+      adminMode = true;
+      return interaction.editReply("✅ 관리자 모드를 켰습니다.");
+    } else if (state === "off") {
+      adminMode = false;
+      return interaction.editReply("❌ 관리자 모드를 껐습니다.");
+    }
+  }
+
+  // /관리자지급 (관리자 모드 켜져 있을 때만 실행)
+  else if (commandName === '관리자지급') {
+    const adminId = "627846998074327051";
+    if (user.id !== adminId) {
+      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
+    }
+    if (!adminMode) {
+      return interaction.editReply("❌ 관리자 모드가 꺼져있습니다. `/관리자권한 on`으로 켜주세요.");
     }
 
     const target = options.getUser('대상');

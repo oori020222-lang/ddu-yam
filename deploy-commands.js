@@ -42,7 +42,19 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('관리자권한')
-    .setDescription('관리자가 특정 유저에게 코인을 지급합니다.')
+    .setDescription('관리자 모드를 켜거나 끕니다.')
+    .addStringOption(option =>
+      option.setName('상태')
+        .setDescription('on / off')
+        .setRequired(true)
+        .addChoices(
+          { name: '켜기', value: 'on' },
+          { name: '끄기', value: 'off' }
+        )),
+
+  new SlashCommandBuilder()
+    .setName('관리자지급')
+    .setDescription('관리자 모드가 켜져 있을 때만 코인을 지급합니다.')
     .addUserOption(option =>
       option.setName('대상').setDescription('코인을 줄 유저').setRequired(true))
     .addIntegerOption(option =>
@@ -62,14 +74,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 (async () => {
   try {
     console.log('📡 명령어 등록 중...');
-    await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID),
-      { body: commands }
-    );
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
     console.log('✅ 명령어 등록 완료');
   } catch (err) {
     console.error(err);
   }
 })();
-
 
