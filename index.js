@@ -19,7 +19,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const db = new sqlite3.Database('./database.db');
 const fmt = (n) => Number(n).toLocaleString();
 
-let adminMode = false; // 관리자 모드 상태 저장
+const adminId = "627846998074327051"; // 제작자 ID
 
 // DB 초기화
 db.run(`
@@ -32,6 +32,29 @@ db.run(`
   )
 `);
 
+db.run(`
+  CREATE TABLE IF NOT EXISTS admin (
+    id TEXT PRIMARY KEY,
+    mode INTEGER
+  )
+`);
+
+// 관리자 모드 가져오기
+function getAdminMode(callback) {
+  db.get("SELECT mode FROM admin WHERE id = ?", [adminId], (err, row) => {
+    if (row) {
+      callback(row.mode === 1);
+    } else {
+      callback(false);
+    }
+  });
+}
+
+// 관리자 모드 설정
+function setAdminMode(state) {
+  db.run("INSERT OR REPLACE INTO admin (id, mode) VALUES (?, ?)", [adminId, state ? 1 : 0]);
+}
+
 client.once('ready', () => {
   console.log(`🤖 ${client.user.tag}로 로그인함`);
 });
@@ -40,7 +63,7 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true }); // 모든 응답은 관리자만 보이게
 
   // /돈내놔
   if (commandName === '돈내놔') {
@@ -192,40 +215,41 @@ client.on('interactionCreate', async (interaction) => {
 
   // /관리자권한 (on/off)
   else if (commandName === '관리자권한') {
-    const adminId = "627846998074327051"; // 제작자 ID
     if (user.id !== adminId) {
-      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
+      return interaction.editReply({ content: "❌ 이 명령어는 제작자만 사용할 수 있습니다!", ephemeral: true });
     }
 
-    const state = options.getString('상태'); // on/off
+    const state = options.getString('상태');
     if (state === "on") {
-      adminMode = true;
-      return interaction.editReply("✅ 관리자 모드를 켰습니다.");
+      setAdminMode(true);
+      return interaction.editReply({ content: "✅ 관리자 모드를 켰습니다.", ephemeral: true });
     } else if (state === "off") {
-      adminMode = false;
-      return interaction.editReply("❌ 관리자 모드를 껐습니다.");
+      setAdminMode(false);
+      return interaction.editReply({ content: "❌ 관리자 모드를 껐습니다.", ephemeral: true });
     }
   }
 
-  // /관리자지급 (관리자 모드 켜져 있을 때만 실행)
+  // /관리자지급 (관리자 모드 켜져 있을 때만 실행, 관리자만 보임)
   else if (commandName === '관리자지급') {
-    const adminId = "627846998074327051";
     if (user.id !== adminId) {
-      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
-    }
-    if (!adminMode) {
-      return interaction.editReply("❌ 관리자 모드가 꺼져있습니다. `/관리자권한 on`으로 켜주세요.");
+      return interaction.editReply({ content: "❌ 이 명령어는 제작자만 사용할 수 있습니다!", ephemeral: true });
     }
 
-    const target = options.getUser('대상');
-    const amount = options.getInteger('금액');
+    getAdminMode((isOn) => {
+      if (!isOn) {
+        return interaction.editReply({ content: "❌ 관리자 모드가 꺼져있습니다. `/관리자권한 on`으로 켜주세요.", ephemeral: true });
+      }
 
-    if (amount <= 0) return interaction.editReply("❌ 지급 금액은 1 이상이어야 합니다!");
+      const target = options.getUser('대상');
+      const amount = options.getInteger('금액');
 
-    db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
-    db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
+      if (amount <= 0) return interaction.editReply({ content: "❌ 지급 금액은 1 이상이어야 합니다!", ephemeral: true });
 
-    interaction.editReply(`✅ ${target.username} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`);
+      db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
+      db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
+
+      interaction.editReply({ content: `✅ ${target.username} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`, ephemeral: true });
+    });
   }
 
   // /청소
@@ -234,7 +258,7 @@ client.on('interactionCreate', async (interaction) => {
     const targetUser = options.getUser('유저');
 
     if (amount < 1 || amount > 100) {
-      return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
+      return interaction.editReply({ content: "❌ 1~100개까지만 삭제할 수 있습니다!", ephemeral: true });
     }
 
     const channel = interaction.channel;
@@ -244,10 +268,10 @@ client.on('interactionCreate', async (interaction) => {
     if (targetUser) {
       const userMessages = messages.filter(m => m.author.id === targetUser.id);
       deleted = await channel.bulkDelete(userMessages, true);
-      interaction.editReply(`🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`);
+      interaction.editReply({ content: `🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`, ephemeral: true });
     } else {
       deleted = await channel.bulkDelete(messages, true);
-      interaction.editReply(`🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`);
+      interaction.editReply({ content: `🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`, ephemeral: true });
     }
   }
 });

@@ -41,8 +41,17 @@ const commands = [
         )),
 
   new SlashCommandBuilder()
+    .setName('청소')
+    .setDescription('채팅방 메시지를 삭제합니다 (1~100).')
+    .addIntegerOption(option =>
+      option.setName('개수').setDescription('삭제할 메시지 수 (최대 100)').setRequired(true))
+    .addUserOption(option =>
+      option.setName('유저').setDescription('특정 유저 메시지만 삭제 (선택)').setRequired(false)),
+
+  // === 관리자 전용 ===
+  new SlashCommandBuilder()
     .setName('관리자권한')
-    .setDescription('관리자 모드를 켜거나 끕니다.')
+    .setDescription('(관리자 전용) 관리자 모드를 켜거나 끕니다.')
     .addStringOption(option =>
       option.setName('상태')
         .setDescription('on / off')
@@ -50,23 +59,19 @@ const commands = [
         .addChoices(
           { name: '켜기', value: 'on' },
           { name: '끄기', value: 'off' }
-        )),
+        ))
+    .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
 
   new SlashCommandBuilder()
     .setName('관리자지급')
-    .setDescription('관리자 모드가 켜져 있을 때만 코인을 지급합니다.')
+    .setDescription('(관리자 전용) 코인을 지급합니다.')
     .addUserOption(option =>
       option.setName('대상').setDescription('코인을 줄 유저').setRequired(true))
     .addIntegerOption(option =>
-      option.setName('금액').setDescription('지급할 금액').setRequired(true)),
-
-  new SlashCommandBuilder()
-    .setName('청소')
-    .setDescription('채팅방 메시지를 삭제합니다 (1~100).')
-    .addIntegerOption(option =>
-      option.setName('개수').setDescription('삭제할 메시지 수 (최대 100)').setRequired(true))
-    .addUserOption(option =>
-      option.setName('유저').setDescription('특정 유저 메시지만 삭제 (선택)').setRequired(false)),
+      option.setName('금액').setDescription('지급할 금액').setRequired(true))
+    .setDefaultMemberPermissions(0)
+    .setDMPermission(false),
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
