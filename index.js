@@ -81,7 +81,7 @@ client.on('interactionCreate', async (interaction) => {
               { name: "💰 지급된 코인", value: "20,000 코인", inline: true },
               { name: "✨ 시작 안내", value: "오늘부터 코인 게임을 즐겨보세요!", inline: false }
             )
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
           return interaction.editReply({ embeds: [embed] });
         }
 
@@ -90,7 +90,7 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_ERROR)
             .setTitle("⏳ 이미 받음")
             .setDescription(`${nick} 님,\n\n오늘은 이미 돈을 받았습니다.\n내일 다시 시도해주세요!`)
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
           return interaction.editReply({ embeds: [embed] });
         }
 
@@ -104,7 +104,7 @@ client.on('interactionCreate', async (interaction) => {
             { name: "💰 지급 금액", value: "20,000 코인", inline: true },
             { name: "💰 현재 잔액", value: `${fmt(newBalance)} 코인`, inline: true }
           )
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         interaction.editReply({ embeds: [embed] });
       });
     }
@@ -119,7 +119,7 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_ERROR)
             .setTitle("❌ 계정 없음")
             .setDescription("아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.")
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
           return interaction.editReply({ embeds: [embed] });
         }
 
@@ -127,7 +127,7 @@ client.on('interactionCreate', async (interaction) => {
           .setColor(COLOR_INFO)
           .setTitle("💰 현재 잔액")
           .setDescription(`${fmt(row.balance)} 코인`)
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
 
         interaction.editReply({ embeds: [embed] });
       });
@@ -146,7 +146,7 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_ERROR)
             .setTitle("❌ 실패")
             .setDescription("계정이 없거나 잔액 부족 혹은 금액 오류입니다.")
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
           return interaction.editReply({ embeds: [embed] });
         }
 
@@ -163,7 +163,7 @@ client.on('interactionCreate', async (interaction) => {
               `**획득 금액**\n+${fmt(bet)} 코인\n\n` +
               `**현재 잔액**\n${fmt(newBalance)} 코인`
             )
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         } else {
           newBalance -= bet;
           embed = new EmbedBuilder()
@@ -173,7 +173,7 @@ client.on('interactionCreate', async (interaction) => {
               `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
               `**현재 잔액**\n${fmt(newBalance)} 코인`
             )
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         }
 
         db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
@@ -195,7 +195,7 @@ client.on('interactionCreate', async (interaction) => {
           .setColor(COLOR_ERROR)
           .setTitle("❌ 송금 불가")
           .setDescription("자기 자신에게는 송금할 수 없고 금액은 1 이상이어야 합니다.")
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         return interaction.editReply({ embeds: [embed] });
       }
 
@@ -205,7 +205,7 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_ERROR)
             .setTitle("❌ 실패")
             .setDescription("잔액 부족 또는 계정 없음")
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
           return interaction.editReply({ embeds: [embed] });
         }
 
@@ -221,7 +221,8 @@ client.on('interactionCreate', async (interaction) => {
             { name: "받는 사람", value: targetNick, inline: true },
             { name: "송금 금액", value: `💰 ${fmt(amount)} 코인`, inline: false }
           )
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 1024 })) // 받는 사람
+          .setImage(user.displayAvatarURL({ dynamic: true, size: 512 }));       // 보낸 사람
 
         interaction.editReply({ embeds: [embed] });
       });
@@ -236,7 +237,7 @@ client.on('interactionCreate', async (interaction) => {
           .setColor(COLOR_ERROR)
           .setTitle("❌ 권한 없음")
           .setDescription("이 명령어는 관리자만 사용할 수 있습니다!")
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
       adminMode = !adminMode;
@@ -245,7 +246,7 @@ client.on('interactionCreate', async (interaction) => {
         .setColor(adminMode ? COLOR_SUCCESS : COLOR_ERROR)
         .setTitle("⚙️ 관리자 모드 전환")
         .setDescription(`관리자 모드가 ${status} 상태가 되었습니다.`)
-        .setThumbnail(user.displayAvatarURL());
+        .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
       return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
@@ -258,7 +259,7 @@ client.on('interactionCreate', async (interaction) => {
           .setColor(COLOR_ERROR)
           .setTitle("❌ 사용 불가")
           .setDescription("관리자 모드가 꺼져 있거나 권한이 없습니다.")
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
 
@@ -272,7 +273,7 @@ client.on('interactionCreate', async (interaction) => {
           .setColor(COLOR_ERROR)
           .setTitle("❌ 금액 오류")
           .setDescription("지급 금액은 1 이상이어야 합니다!")
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
 
@@ -287,7 +288,8 @@ client.on('interactionCreate', async (interaction) => {
           { name: "받는 사람", value: targetNick, inline: true },
           { name: "지급 금액", value: `💰 ${fmt(amount)} 코인`, inline: false }
         )
-        .setThumbnail(target.displayAvatarURL()); // 지급받는 유저 프로필 표시
+        .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 1024 })) // 받는 사람
+        .setImage(user.displayAvatarURL({ dynamic: true, size: 512 }));       // 관리자(보낸 사람)
 
       return interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
@@ -303,7 +305,7 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_ERROR)
             .setTitle("❌ 실패")
             .setDescription("계정 없음, 잔액 부족, 최소 베팅 1000 이상이어야 합니다.")
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
           return interaction.editReply({ embeds: [embed] });
         }
 
@@ -332,7 +334,7 @@ client.on('interactionCreate', async (interaction) => {
               { name: "획득 금액", value: `${fmt(payout)} 코인`, inline: true },
               { name: "현재 잔액", value: `${fmt(newBalance)} 코인`, inline: false }
             )
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         } else {
           embed = new EmbedBuilder()
             .setColor(payout > 0 ? COLOR_SUCCESS : COLOR_ERROR)
@@ -342,7 +344,7 @@ client.on('interactionCreate', async (interaction) => {
                 ? `결과: ${result}\n획득: ${fmt(payout)} (순이익 ${delta >= 0 ? "+" : ""}${fmt(delta)})\n현재 잔액: ${fmt(newBalance)}`
                 : `결과: ${result}\n-${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`
             )
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         }
         interaction.editReply({ embeds: [embed] });
       });
@@ -360,7 +362,7 @@ client.on('interactionCreate', async (interaction) => {
             const embed = new EmbedBuilder()
               .setColor(COLOR_ERROR)
               .setTitle("📉 데이터 없음")
-              .setThumbnail(user.displayAvatarURL());
+              .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
             return interaction.editReply({ embeds: [embed] });
           }
 
@@ -375,7 +377,7 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_INFO)
             .setTitle(`⭐ ${guild.name} 서버 랭킹`)
             .setDescription(rankMsg)
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
 
           interaction.editReply({ embeds: [embed] });
         });
@@ -385,7 +387,7 @@ client.on('interactionCreate', async (interaction) => {
             const embed = new EmbedBuilder()
               .setColor(COLOR_ERROR)
               .setTitle("📉 데이터 없음")
-              .setThumbnail(user.displayAvatarURL());
+              .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
             return interaction.editReply({ embeds: [embed] });
           }
 
@@ -400,7 +402,7 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_INFO)
             .setTitle("🏆 전체 서버 랭킹")
             .setDescription(rankMsg)
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
 
           interaction.editReply({ embeds: [embed] });
         });
@@ -419,14 +421,13 @@ client.on('interactionCreate', async (interaction) => {
           .setColor(COLOR_ERROR)
           .setTitle("❌ 범위 오류")
           .setDescription("1~100개까지만 삭제할 수 있습니다!")
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
         return interaction.editReply({ embeds: [embed] });
       }
 
       const channel = interaction.channel;
 
       if (target) {
-        // 특정 유저 메시지 삭제
         const messages = await channel.messages.fetch({ limit: 100 });
         const userMessages = messages.filter(m => m.author.id === target.id).first(amount);
 
@@ -437,19 +438,25 @@ client.on('interactionCreate', async (interaction) => {
         const embed = new EmbedBuilder()
           .setColor(COLOR_SUCCESS)
           .setTitle("🧹 청소 완료!")
-          .setDescription(`**대상 유저**\n${target.username}\n\n삭제된 메시지: ${userMessages.length} 개`)
-          .setThumbnail(user.displayAvatarURL());
+          .setDescription(
+            `**대상 유저**\n${target.username}\n\n` +
+            `**삭제된 메시지 수**\n${userMessages.length} 개\n\n` +
+            `**요청자**\n${guild.members.cache.get(user.id)?.displayName || user.username}`
+          )
+          .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 1024 }));
 
         return interaction.editReply({ embeds: [embed] });
       } else {
-        // 전체 메시지 청소
         const messages = await channel.bulkDelete(amount, true);
 
         const embed = new EmbedBuilder()
           .setColor(COLOR_SUCCESS)
           .setTitle("🧹 청소 완료!")
-          .setDescription(`삭제된 메시지: ${messages.size} 개`)
-          .setThumbnail(user.displayAvatarURL());
+          .setDescription(
+            `**삭제된 메시지 수**\n${messages.size} 개\n\n` +
+            `**요청자**\n${guild.members.cache.get(user.id)?.displayName || user.username}`
+          )
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
 
         return interaction.editReply({ embeds: [embed] });
       }
@@ -466,11 +473,11 @@ client.on('interactionCreate', async (interaction) => {
             .setColor(COLOR_ERROR)
             .setTitle("❌ 베팅 실패")
             .setDescription("계정이 없거나 잔액이 부족하거나 최소 베팅(1000) 미만입니다.")
-            .setThumbnail(user.displayAvatarURL());
+            .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
           return interaction.editReply({ embeds: [embed] });
         }
 
-        const cards = ['❌', '❌', '🎉']; // 꽝 2개, 당첨 1개
+        const cards = ['❌', '❌', '🎉'];
         const shuffled = cards.sort(() => Math.random() - 0.5);
 
         const rowButtons = new ActionRowBuilder().addComponents(
@@ -486,7 +493,7 @@ client.on('interactionCreate', async (interaction) => {
           .setColor(COLOR_INFO)
           .setTitle("🎲 야바위 게임")
           .setDescription("3장의 카드 중 하나를 선택하세요!")
-          .setThumbnail(user.displayAvatarURL());
+          .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 1024 }));
 
         interaction.editReply({ embeds: [embed], components: [rowButtons] });
       });
@@ -504,14 +511,15 @@ client.on('interactionCreate', async (interaction) => {
 
     db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [interaction.user.id, interaction.guild.id], (err, row) => {
       if (!row || row.balance < bet) {
-        return interaction.update({
+        return interaction.reply({
           embeds: [
             new EmbedBuilder()
               .setColor(COLOR_ERROR)
               .setTitle("❌ 오류")
               .setDescription("잔액이 부족하거나 계정이 없습니다.")
+              .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 1024 }))
           ],
-          components: []
+          ephemeral: true
         });
       }
 
@@ -523,13 +531,13 @@ client.on('interactionCreate', async (interaction) => {
         newBalance += (payout - bet);
         embed = new EmbedBuilder()
           .setColor(COLOR_SUCCESS)
-          .setTitle("🎉 대박 당첨!") // ✅ 여기서 '대박 당첨'으로 변경
+          .setTitle("🎉 대박 당첨!")
           .setDescription(
             `3배 당첨!\n\n` +
             `**획득 금액**\n${fmt(payout)} 코인\n\n` +
             `**현재 잔액**\n${fmt(newBalance)} 코인`
           )
-          .setThumbnail(interaction.user.displayAvatarURL());
+          .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 1024 }));
       } else {
         newBalance -= bet;
         embed = new EmbedBuilder()
@@ -539,7 +547,7 @@ client.on('interactionCreate', async (interaction) => {
             `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
             `**현재 잔액**\n${fmt(newBalance)} 코인`
           )
-          .setThumbnail(interaction.user.displayAvatarURL());
+          .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 1024 }));
       }
 
       db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, interaction.user.id, interaction.guild.id]);
