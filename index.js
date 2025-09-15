@@ -462,12 +462,12 @@ client.on('interactionCreate', async (interaction) => {
       }
     }
 
-    // ──────────────────────
-    // /야바위 (올인 지원)
+     // ──────────────────────
+    // /야바위 (올인 지원 + 셔플 수정)
     // ──────────────────────
     else if (commandName === '야바위') {
       const betInput = options.getString('금액');
-      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], async (err, row) => {
+      db.get("SELECT balance FROM users WHERE id = ?", [user.id], async (err, row) => {
         if (!row) {
           const embed = new EmbedBuilder()
             .setColor(COLOR_ERROR)
@@ -487,21 +487,21 @@ client.on('interactionCreate', async (interaction) => {
           return interaction.editReply({ embeds: [embed] });
         }
 
-    // Fisher-Yates 셔플 함수
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    }
+        // 피셔-예이츠 셔플 함수
+        function shuffle(array) {
+          for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+          }
+          return array;
+        }
 
-  const cards = shuffle(['❌', '❌', '🎉']); // 꽝 2개, 당첨 1개
+        const shuffled = shuffle(['❌', '❌', '🎉']);
 
         const rowButtons = new ActionRowBuilder().addComponents(
-           cards.map((_, i) =>
+          shuffled.map((_, i) =>
             new ButtonBuilder()
-              .setCustomId(`yabawi_${i}_${bet}_${cards[i]}`)
+              .setCustomId(`yabawi_${i}_${bet}`)
               .setLabel(`카드 ${i + 1}`)
               .setStyle(ButtonStyle.Primary)
           )
@@ -517,57 +517,69 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-// ──────────────────────
-// 버튼 처리 (야바위)
-// ──────────────────────
-if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
-  const [_, index, bet, symbol] = interaction.customId.split('_');
-  const chosen = parseInt(index);
+  // ──────────────────────
+  // 버튼 처리 (야바위)
+  // ──────────────────────
+  if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
+    const [_, index, bet] = interaction.customId.split('_');
+    const chosen = parseInt(index);
 
-  db.get("SELECT balance FROM users WHERE id = ?", [interaction.user.id], (err, row) => {
-    if (!row || row.balance < bet) {
-      return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(COLOR_ERROR)
-            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-            .setTitle("❌ 오류")
-            .setDescription("잔액이 부족하거나 계정이 없습니다.")
-        ],
-        ephemeral: true
-      });
+    // 다시 셔플해서 결과 보장 (위치 랜덤)
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
     }
+    const shuffled = shuffle(['❌', '❌', '🎉']);
+    const result = shuffled[chosen];
 
-    let newBal = row.balance;
-    let embed;
+    db.get("SELECT balance FROM users WHERE id = ?", [interaction.user.id], (err, row) => {
+      if (!row || row.balance < bet) {
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(COLOR_ERROR)
+              .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+              .setTitle("❌ 오류")
+              .setDescription("잔액이 부족하거나 계정이 없습니다.")
+          ],
+          ephemeral: true
+        });
+      }
 
-    if (symbol === '🎉') {
-      const payout = bet * 3;
-      newBal += (payout - bet);
-      embed = new EmbedBuilder()
-        .setColor(COLOR_SUCCESS)
-        .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-        .setTitle("🎉 당첨!")
-        .setDescription(
-          `3배 당첨!\n\n` +
-          `**획득 금액**\n${fmt(payout)} 코인\n\n` +
-          `**현재 잔액**\n${fmt(newBal)} 코인`
-        );
-    } else {
-      newBal -= bet;
-      embed = new EmbedBuilder()
-        .setColor(COLOR_ERROR)
-        .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-        .setTitle("❌ 꽝")
-        .setDescription(
-          `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
-          `**현재 잔액**\n${fmt(newBal)} 코인`
-        );
-    }
+      let newBal = row.balance;
+      let embed;
 
-    db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, interaction.user.id]);
-    interaction.update({ embeds: [embed], components: [] });
-  });
-}
+      if (result === '🎉') {
+        const payout = bet * 3;
+        newBal += (payout - bet);
+        embed = new EmbedBuilder()
+          .setColor(COLOR_SUCCESS)
+          .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+          .setTitle("🎉 당첨!")
+          .setDescription(
+            `3배 당첨!\n\n` +
+            `**획득 금액**\n${fmt(payout)} 코인\n\n` +
+            `**현재 잔액**\n${fmt(newBal)} 코인`
+          );
+      } else {
+        newBal -= bet;
+        embed = new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+          .setTitle("❌ 꽝")
+          .setDescription(
+            `**손실 금액**\n-${fmt(bet)} 코인\n\n` +
+            `**현재 잔액**\n${fmt(newBal)} 코인`
+          );
+      }
+
+      db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, interaction.user.id]);
+      interaction.update({ embeds: [embed], components: [] });
+    });
+  }
+});
 
 client.login(process.env.DISCORD_TOKEN);
