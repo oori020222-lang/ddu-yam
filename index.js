@@ -50,7 +50,8 @@ function setAdminMode(state) {
   db.run("INSERT OR REPLACE INTO admin (id, mode) VALUES (?, ?)", [adminId, state ? 1 : 0]);
 }
 
-client.once('ready', () => {
+// ✅ 최신 이벤트명 사용
+client.once('clientReady', () => {
   console.log(`🤖 ${client.user.tag}로 로그인함`);
 });
 
@@ -58,255 +59,259 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName, options, user, guild } = interaction;
 
-  await interaction.deferReply();
+  try {
+    await interaction.deferReply();
 
-  // /돈내놔
-  if (commandName === '돈내놔') {
-    const today = new Date().toDateString();
-    db.get("SELECT balance, lastDaily FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) {
-        db.run("INSERT INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 20000, ?)", [user.id, guild.id, today]);
-        return interaction.editReply(`💸 오늘 첫 돈! 20,000원을 지급했습니다!\n현재 잔액: ${fmt(20000)}`);
-      }
-      if (row.lastDaily === today) {
-        return interaction.editReply("⏳ 오늘은 이미 돈을 받았습니다. 내일 다시 시도해주세요!");
-      }
-      const newBalance = row.balance + 20000;
-      db.run("UPDATE users SET balance = ?, lastDaily = ? WHERE id = ? AND guildId = ?", [newBalance, today, user.id, guild.id]);
-      interaction.editReply(`💸 20,000원을 받았습니다!\n현재 잔액: ${fmt(newBalance)}`);
-    });
-  }
+    // /돈내놔
+    if (commandName === '돈내놔') {
+      const today = new Date().toDateString();
+      db.get("SELECT balance, lastDaily FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
+        if (!row) {
+          db.run("INSERT INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 20000, ?)", [user.id, guild.id, today]);
+          return interaction.editReply(`💸 오늘 첫 돈! 20,000원을 지급했습니다!\n현재 잔액: ${fmt(20000)}`);
+        }
+        if (row.lastDaily === today) {
+          return interaction.editReply("⏳ 오늘은 이미 돈을 받았습니다. 내일 다시 시도해주세요!");
+        }
+        const newBalance = row.balance + 20000;
+        db.run("UPDATE users SET balance = ?, lastDaily = ? WHERE id = ? AND guildId = ?", [newBalance, today, user.id, guild.id]);
+        interaction.editReply(`💸 20,000원을 받았습니다!\n현재 잔액: ${fmt(newBalance)}`);
+      });
+    }
 
-  // /잔액
-  else if (commandName === '잔액') {
-    db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) return interaction.editReply("❌ 아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.");
-      interaction.editReply(`💰 현재 잔액: ${fmt(row.balance)} 코인`);
-    });
-  }
+    // /잔액
+    else if (commandName === '잔액') {
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
+        if (!row) return interaction.editReply("❌ 아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.");
+        interaction.editReply(`💰 현재 잔액: ${fmt(row.balance)} 코인`);
+      });
+    }
 
-  // /동전던지기
-  else if (commandName === '동전던지기') {
-    const side = options.getString('선택');
-    const bet = options.getInteger('금액');
-    db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
-      if (bet <= 0) return interaction.editReply("❌ 베팅 금액은 1 이상이어야 합니다!");
-      if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
-
-      const result = Math.random() < 0.5 ? '앞면' : '뒷면';
-      let newBalance = row.balance;
-
-      if (result === side) {
-        newBalance += bet;
-        interaction.editReply(`🎉 ${result}! 승리! +${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
-      } else {
-        newBalance -= bet;
-        interaction.editReply(`😢 ${result}! 패배... -${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
-      }
-      db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
-    });
-  }
-
-  // /대박복권
-  else if (commandName === '대박복권') {
-    let betInput = options.getString('금액');
-
-    db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
-      if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
-
-      let bet;
-      if (betInput === "올인") {
-        bet = row.balance;
-        if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
-      } else {
-        bet = parseInt(betInput, 10);
-        if (isNaN(bet) || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
+    // /동전던지기
+    else if (commandName === '동전던지기') {
+      const side = options.getString('선택');
+      const bet = options.getInteger('금액');
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
+        if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
+        if (bet <= 0) return interaction.editReply("❌ 베팅 금액은 1 이상이어야 합니다!");
         if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
-      }
 
-      const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "🔥"];
-      const SLOT_WEIGHTS = [34.9, 30, 20, 10, 5, 0.1];
-      const SLOT_PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10, "🔥": 100 };
+        const result = Math.random() < 0.5 ? '앞면' : '뒷면';
+        let newBalance = row.balance;
 
-      const r = Math.random() * 100;
-      let sum = 0, result = "🥚";
-      for (let i = 0; i < SLOT_SYMBOLS.length; i++) {
-        sum += SLOT_WEIGHTS[i];
-        if (r < sum) { result = SLOT_SYMBOLS[i]; break; }
-      }
-
-      let payout = 0;
-      if (SLOT_PAYOUTS[result]) payout = bet * SLOT_PAYOUTS[result];
-
-      const delta = payout - bet;
-      const newBalance = row.balance + delta;
-      db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
-
-      if (result === "🔥") {
-        interaction.editReply(
-          `🔥🔥🔥 초대박 당첨!! 🔥🔥🔥\n\n` +
-          `💯 베팅: **${fmt(bet)} 코인**\n` +
-          `💎 당첨금: **${fmt(payout)} 코인** (+${fmt(delta)})\n` +
-          `🏦 현재 잔액: ${fmt(newBalance)}`
-        );
-      } else if (payout > 0) {
-        interaction.editReply(
-          `🎰 결과: ${result}\n🎉 당첨! 배당 x${SLOT_PAYOUTS[result]}\n획득: **${fmt(payout)}** (순이익 +${fmt(delta)})\n현재 잔액: ${fmt(newBalance)}`
-        );
-      } else {
-        interaction.editReply(
-          `🎰 결과: ${result}\n❌ 꽝! -${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`
-        );
-      }
-    });
-  }
-
-  // /송금 (서버 닉네임 Embed)
-  else if (commandName === '송금') {
-    const target = options.getUser('받는사람');
-    const amount = options.getInteger('금액');
-
-    if (user.id === target.id) return interaction.editReply("❌ 자기 자신에게는 송금할 수 없습니다!");
-    if (amount <= 0) return interaction.editReply("❌ 송금 금액은 1 이상이어야 합니다!");
-
-    db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], async (err, senderRow) => {
-      if (!senderRow) return interaction.editReply("❌ 아직 돈을 받은 적이 없는 유저는 송금할 수 없습니다! `/돈내놔`로 시작하세요.");
-      if (senderRow.balance < amount) return interaction.editReply("❌ 잔액이 부족합니다!");
-
-      db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
-      db.run("UPDATE users SET balance = balance - ? WHERE id = ? AND guildId = ?", [amount, user.id, guild.id]);
-      db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
-
-      const senderMember = await guild.members.fetch(user.id).catch(() => null);
-      const targetMember = await guild.members.fetch(target.id).catch(() => null);
-
-      const senderName = senderMember ? senderMember.displayName : user.username;
-      const targetName = targetMember ? targetMember.displayName : target.username;
-
-      const embed = new EmbedBuilder()
-        .setColor(0x2ecc71)
-        .setTitle("💸 송금 완료")
-        .addFields(
-          { name: "보낸 사람", value: senderName, inline: true },
-          { name: "받은 사람", value: targetName, inline: true },
-          { name: "송금 금액", value: `${fmt(amount)} 코인`, inline: false }
-        )
-        .setFooter({ text: `요청자: ${senderName}`, iconURL: user.displayAvatarURL() })
-        .setTimestamp();
-
-      interaction.editReply({ embeds: [embed] });
-    });
-  }
-
-  // /랭킹
-  else if (commandName === '랭킹') {
-    const type = options.getString('종류');
-
-    if (type === 'server') {
-      db.all("SELECT id, balance FROM users WHERE balance > 0 AND guildId = ? ORDER BY balance DESC LIMIT 10", [guild.id], async (err, rows) => {
-        if (!rows || rows.length === 0) return interaction.editReply("📉 이 서버에 데이터가 없습니다!");
-
-        let rankMsg = await Promise.all(rows.map(async (row, i) => {
-          const member = await interaction.guild.members.fetch(row.id).catch(() => null);
-          const displayName = member ? member.displayName : (client.users.cache.get(row.id)?.username || row.id);
-
-          let medal = "";
-          if (i === 0) medal = "🥇";
-          else if (i === 1) medal = "🥈";
-          else if (i === 2) medal = "🥉";
-
-          return `#${i+1} ${medal} ${displayName} — ${fmt(row.balance)} 코인`;
-        }));
-
-        interaction.editReply(`**⭐ ${guild.name} 서버 랭킹 TOP 10**\n${rankMsg.join("\n")}`);
+        if (result === side) {
+          newBalance += bet;
+          interaction.editReply(`🎉 ${result}! 승리! +${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
+        } else {
+          newBalance -= bet;
+          interaction.editReply(`😢 ${result}! 패배... -${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`);
+        }
+        db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
       });
     }
 
-    else if (type === 'global') {
-      db.all("SELECT id, SUM(balance) as total FROM users WHERE balance > 0 GROUP BY id ORDER BY total DESC LIMIT 10", async (err, rows) => {
-        if (!rows || rows.length === 0) return interaction.editReply("📉 아직 전체 데이터가 없습니다!");
+    // /대박복권
+    else if (commandName === '대박복권') {
+      let betInput = options.getString('금액');
 
-        let rankMsg = await Promise.all(rows.map(async (row, i) => {
-          const userObj = await client.users.fetch(row.id).catch(() => null);
-          const displayName = userObj ? userObj.username : row.id;
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], (err, row) => {
+        if (!row) return interaction.editReply("❌ 먼저 `/돈내놔`로 계정을 생성하세요!");
 
-          let medal = "";
-          if (i === 0) medal = "🥇";
-          else if (i === 1) medal = "🥈";
-          else if (i === 2) medal = "🥉";
+        let bet;
+        if (betInput === "올인") {
+          bet = row.balance;
+          if (bet < 1000) return interaction.editReply("❌ 최소 올인 금액은 1,000 이상이어야 합니다!");
+        } else {
+          bet = parseInt(betInput, 10);
+          if (isNaN(bet) || bet < 1000) return interaction.editReply("❌ 최소 베팅액은 1,000입니다!");
+          if (row.balance < bet) return interaction.editReply("❌ 코인이 부족합니다!");
+        }
 
-          return `#${i+1} ${medal} ${displayName} — ${fmt(row.total)} 코인`;
-        }));
+        const SLOT_SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "🔥"];
+        const SLOT_WEIGHTS = [34.9, 30, 20, 10, 5, 0.1];
+        const SLOT_PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10, "🔥": 100 };
 
-        interaction.editReply(`**🏆 전체 랭킹 TOP 10**\n${rankMsg.join("\n")}`);
+        const r = Math.random() * 100;
+        let sum = 0, result = "🥚";
+        for (let i = 0; i < SLOT_SYMBOLS.length; i++) {
+          sum += SLOT_WEIGHTS[i];
+          if (r < sum) { result = SLOT_SYMBOLS[i]; break; }
+        }
+
+        let payout = 0;
+        if (SLOT_PAYOUTS[result]) payout = bet * SLOT_PAYOUTS[result];
+
+        const delta = payout - bet;
+        const newBalance = row.balance + delta;
+        db.run("UPDATE users SET balance = ? WHERE id = ? AND guildId = ?", [newBalance, user.id, guild.id]);
+
+        if (result === "🔥") {
+          interaction.editReply(
+            `🔥🔥🔥 초대박 당첨!! 🔥🔥🔥\n\n` +
+            `💯 베팅: **${fmt(bet)} 코인**\n` +
+            `💎 당첨금: **${fmt(payout)} 코인** (+${fmt(delta)})\n` +
+            `🏦 현재 잔액: ${fmt(newBalance)}`
+          );
+        } else if (payout > 0) {
+          interaction.editReply(
+            `🎰 결과: ${result}\n🎉 당첨! 배당 x${SLOT_PAYOUTS[result]}\n획득: **${fmt(payout)}** (순이익 +${fmt(delta)})\n현재 잔액: ${fmt(newBalance)}`
+          );
+        } else {
+          interaction.editReply(
+            `🎰 결과: ${result}\n❌ 꽝! -${fmt(bet)}\n현재 잔액: ${fmt(newBalance)}`
+          );
+        }
       });
     }
-  }
 
-  // /관리자권한
-  else if (commandName === '관리자권한') {
-    if (user.id !== adminId) {
-      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
-    }
-
-    const state = options.getString('상태');
-    if (state === "on") {
-      setAdminMode(true);
-      return interaction.editReply("✅ 관리자 모드를 켰습니다.");
-    } else if (state === "off") {
-      setAdminMode(false);
-      return interaction.editReply("❌ 관리자 모드를 껐습니다.");
-    }
-  }
-
-  // /관리자지급 (서버 닉네임)
-  else if (commandName === '관리자지급') {
-    if (user.id !== adminId) {
-      return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
-    }
-
-    getAdminMode(async (isOn) => {
-      if (!isOn) {
-        return interaction.editReply("❌ 관리자 모드가 꺼져있습니다. `/관리자권한 on`으로 켜주세요.");
-      }
-
-      const target = options.getUser('대상');
+    // /송금 (서버 닉네임 Embed)
+    else if (commandName === '송금') {
+      const target = options.getUser('받는사람');
       const amount = options.getInteger('금액');
 
-      if (amount <= 0) return interaction.editReply("❌ 지급 금액은 1 이상이어야 합니다!");
+      if (user.id === target.id) return interaction.editReply("❌ 자기 자신에게는 송금할 수 없습니다!");
+      if (amount <= 0) return interaction.editReply("❌ 송금 금액은 1 이상이어야 합니다!");
 
-      db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
-      db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
+      db.get("SELECT balance FROM users WHERE id = ? AND guildId = ?", [user.id, guild.id], async (err, senderRow) => {
+        if (!senderRow) return interaction.editReply("❌ 아직 돈을 받은 적이 없는 유저는 송금할 수 없습니다! `/돈내놔`로 시작하세요.");
+        if (senderRow.balance < amount) return interaction.editReply("❌ 잔액이 부족합니다!");
 
-      const targetMember = await guild.members.fetch(target.id).catch(() => null);
-      const targetName = targetMember ? targetMember.displayName : target.username;
+        db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
+        db.run("UPDATE users SET balance = balance - ? WHERE id = ? AND guildId = ?", [amount, user.id, guild.id]);
+        db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
 
-      interaction.editReply(`✅ ${targetName} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`);
-    });
-  }
+        const senderMember = await guild.members.fetch(user.id).catch(() => null);
+        const targetMember = await guild.members.fetch(target.id).catch(() => null);
 
-  // /청소
-  else if (commandName === '청소') {
-    const amount = options.getInteger('개수');
-    const targetUser = options.getUser('유저');
+        const senderName = senderMember ? senderMember.displayName : user.username;
+        const targetName = targetMember ? targetMember.displayName : target.username;
 
-    if (amount < 1 || amount > 100) {
-      return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
+        const embed = new EmbedBuilder()
+          .setColor(0x2ecc71)
+          .setTitle("💸 송금 완료")
+          .addFields(
+            { name: "보낸 사람", value: senderName, inline: true },
+            { name: "받은 사람", value: targetName, inline: true },
+            { name: "송금 금액", value: `${fmt(amount)} 코인`, inline: false }
+          )
+          .setFooter({ text: `요청자: ${senderName}`, iconURL: user.displayAvatarURL() })
+          .setTimestamp();
+
+        interaction.editReply({ embeds: [embed] });
+      });
     }
 
-    const channel = interaction.channel;
-    const messages = await channel.messages.fetch({ limit: amount });
+    // /랭킹
+    else if (commandName === '랭킹') {
+      const type = options.getString('종류');
 
-    let deleted;
-    if (targetUser) {
-      const userMessages = messages.filter(m => m.author.id === targetUser.id);
-      deleted = await channel.bulkDelete(userMessages, true);
-      interaction.editReply(`🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`);
-    } else {
-      deleted = await channel.bulkDelete(messages, true);
-      interaction.editReply(`🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`);
+      if (type === 'server') {
+        db.all("SELECT id, balance FROM users WHERE balance > 0 AND guildId = ? ORDER BY balance DESC LIMIT 10", [guild.id], async (err, rows) => {
+          if (!rows || rows.length === 0) return interaction.editReply("📉 이 서버에 데이터가 없습니다!");
+
+          let rankMsg = await Promise.all(rows.map(async (row, i) => {
+            const member = await interaction.guild.members.fetch(row.id).catch(() => null);
+            const displayName = member ? member.displayName : (client.users.cache.get(row.id)?.username || row.id);
+
+            let medal = "";
+            if (i === 0) medal = "🥇";
+            else if (i === 1) medal = "🥈";
+            else if (i === 2) medal = "🥉";
+
+            return `#${i+1} ${medal} ${displayName} — ${fmt(row.balance)} 코인`;
+          }));
+
+          interaction.editReply(`**⭐ ${guild.name} 서버 랭킹 TOP 10**\n${rankMsg.join("\n")}`);
+        });
+      }
+
+      else if (type === 'global') {
+        db.all("SELECT id, SUM(balance) as total FROM users WHERE balance > 0 GROUP BY id ORDER BY total DESC LIMIT 10", async (err, rows) => {
+          if (!rows || rows.length === 0) return interaction.editReply("📉 아직 전체 데이터가 없습니다!");
+
+          let rankMsg = await Promise.all(rows.map(async (row, i) => {
+            const userObj = await client.users.fetch(row.id).catch(() => null);
+            const displayName = userObj ? userObj.username : row.id;
+
+            let medal = "";
+            if (i === 0) medal = "🥇";
+            else if (i === 1) medal = "🥈";
+            else if (i === 2) medal = "🥉";
+
+            return `#${i+1} ${medal} ${displayName} — ${fmt(row.total)} 코인`;
+          }));
+
+          interaction.editReply(`**🏆 전체 랭킹 TOP 10**\n${rankMsg.join("\n")}`);
+        });
+      }
     }
+
+    // /관리자권한
+    else if (commandName === '관리자권한') {
+      if (user.id !== adminId) {
+        return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
+      }
+
+      const state = options.getString('상태');
+      if (state === "on") {
+        setAdminMode(true);
+        return interaction.editReply("✅ 관리자 모드를 켰습니다.");
+      } else if (state === "off") {
+        setAdminMode(false);
+        return interaction.editReply("❌ 관리자 모드를 껐습니다.");
+      }
+    }
+
+    // /관리자지급 (서버 닉네임)
+    else if (commandName === '관리자지급') {
+      if (user.id !== adminId) {
+        return interaction.editReply("❌ 이 명령어는 제작자만 사용할 수 있습니다!");
+      }
+
+      getAdminMode(async (isOn) => {
+        if (!isOn) {
+          return interaction.editReply("❌ 관리자 모드가 꺼져있습니다. `/관리자권한 on`으로 켜주세요.");
+        }
+
+        const target = options.getUser('대상');
+        const amount = options.getInteger('금액');
+
+        if (amount <= 0) return interaction.editReply("❌ 지급 금액은 1 이상이어야 합니다!");
+
+        db.run("INSERT OR IGNORE INTO users (id, guildId, balance, lastDaily) VALUES (?, ?, 0, '')", [target.id, guild.id]);
+        db.run("UPDATE users SET balance = balance + ? WHERE id = ? AND guildId = ?", [amount, target.id, guild.id]);
+
+        const targetMember = await guild.members.fetch(target.id).catch(() => null);
+        const targetName = targetMember ? targetMember.displayName : target.username;
+
+        interaction.editReply(`✅ ${targetName} 님에게 **${fmt(amount)}** 코인을 지급했습니다!`);
+      });
+    }
+
+    // /청소
+    else if (commandName === '청소') {
+      const amount = options.getInteger('개수');
+      const targetUser = options.getUser('유저');
+
+      if (amount < 1 || amount > 100) {
+        return interaction.editReply("❌ 1~100개까지만 삭제할 수 있습니다!");
+      }
+
+      const channel = interaction.channel;
+      const messages = await channel.messages.fetch({ limit: amount });
+
+      let deleted;
+      if (targetUser) {
+        const userMessages = messages.filter(m => m.author.id === targetUser.id);
+        deleted = await channel.bulkDelete(userMessages, true);
+        interaction.editReply(`🧹 ${targetUser.username} 님의 메시지 ${deleted.size}개를 삭제했습니다.`);
+      } else {
+        deleted = await channel.bulkDelete(messages, true);
+        interaction.editReply(`🧹 최근 ${deleted.size}개의 메시지를 삭제했습니다.`);
+      }
+    }
+  } catch (err) {
+    console.error("❌ Interaction 처리 에러:", err);
   }
 });
 
