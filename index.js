@@ -553,7 +553,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
       .setColor(COLOR_SUCCESS)
       .setTitle("🎉 승리 ")
       .setDescription(
-        `선택: 카드 ${chosen + 1} → ${pickedCard}\n정답: 카드 ${answerIndex + 1} → 🎉\n\n+${fmt(payout - wager)} 코인`
+        `선택: 카드 ${chosen + 1}  ${pickedCard}\n정답: 카드 ${answerIndex + 1}  \n\n+${fmt(payout - wager)} 코인`
       )
       .setFooter({
         text: `${interaction.user.username} ｜ ${fmt(newBal)} 코인`,
@@ -565,7 +565,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
       .setColor(COLOR_ERROR)
       .setTitle("❌ 패배 ")
       .setDescription(
-        `선택: 카드 ${chosen + 1} → ${pickedCard}\n정답: 카드 ${answerIndex + 1} → 🎉\n\n-${fmt(wager)} 코인`
+        `선택: 카드 ${chosen + 1}  ${pickedCard}\n정답: 카드 ${answerIndex + 1}  \n\n-${fmt(wager)} 코인`
       )
       .setFooter({
         text: `${interaction.user.username} ｜ ${fmt(newBal)} 코인`,
