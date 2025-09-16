@@ -135,7 +135,7 @@ async function registerCommands(includeAdmin = false) {
   console.log("✅ 명령어 등록 완료 (관리자 지급:", includeAdmin ? "ON" : "OFF", ")");
 }
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`🤖 ${client.user.tag} 로그인됨`);
   await registerCommands(false); // 시작시 지급 OFF
 });
@@ -150,8 +150,8 @@ client.on('interactionCreate', async (interaction) => {
   const nick = guild?.members.cache.get(user.id)?.displayName || user.username;
 
   // 👉 관리자 전용만 ephemeral, 나머지는 공개
-  if (commandName === '관리자권한' || commandName === '지급') {
-    await interaction.deferReply({ ephemeral: true });
+if (commandName === '관리자권한' || commandName === '지급') {
+  await interaction.deferReply({ flags: 64 });
   } else if (interaction.isChatInputCommand()) {
     await interaction.deferReply(); // 공개
   }
@@ -679,15 +679,9 @@ client.on('interactionCreate', async (interaction) => {
   const row = res.rows[0];
   if (!row || row.balance < wager) {
     return interaction.reply({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(COLOR_ERROR)
-          .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-          .setTitle("❌ 오류")
-          .setDescription("잔액이 부족하거나 계정이 없습니다.")
-      ],
-      ephemeral: true
-    });
+  embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 오류").setDescription("잔액이 부족하거나 계정이 없습니다.")],
+  flags: 64
+});
   }
 
   let newBal = row.balance;
