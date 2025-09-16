@@ -296,7 +296,7 @@ if (commandName === '잔액') {
   });
 }
 
- // ──────────────────────
+// ──────────────────────
 // /송금
 // ──────────────────────
 if (commandName === '송금') {
@@ -326,13 +326,13 @@ if (commandName === '송금') {
     });
   }
 
+  // ✅ 닉네임 가져오기 (서버 닉네임 우선, 없으면 username)
+  const senderNick = guild?.members.cache.get(user.id)?.displayName || user.username;
+  const targetNick = guild?.members.cache.get(target.id)?.displayName || target.username;
+
   await db.query("INSERT INTO users (id, balance, lastDaily) VALUES ($1, 0, '') ON CONFLICT (id) DO NOTHING", [target.id]);
   await db.query("UPDATE users SET balance = balance - $1 WHERE id = $2", [amount, user.id]);
   await db.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [amount, target.id]);
-
-  // ✅ 닉네임 가져오기 (서버 닉네임 우선, 없으면 기본 username)
-  const senderNick = guild?.members.cache.get(user.id)?.displayName || user.username;
-  const targetNick = guild?.members.cache.get(target.id)?.displayName || target.username;
 
   return interaction.editReply({
     embeds: [
@@ -340,15 +340,13 @@ if (commandName === '송금') {
         .setColor(COLOR_SUCCESS)
         .setTitle("💌 송금 완료 💌")
         .setDescription(
-          `**보낸 사람**\n[👤] ${senderNick}\n\n` +
-          `**받는 사람**\n[👤] <@${target.id}>\n\n` +
-          `**송금 금액** 💰 ${fmt(amount)} 코인`
+          `**보낸 사람**\n${senderNick}\n\n` +
+          `**받는 사람**\n<@${target.id}>`
         )
         .setFooter({
-          text: `${senderNick} → ${targetNick}`,
-          iconURL: avatar(guild, user.id) // 보낸 사람 프사
+          text: `${targetNick} ｜ 💰 ${fmt(amount)} 코인`,
+          iconURL: avatar(guild, target.id) // 받는 사람 프사
         })
-        .setThumbnail(avatar(guild, target.id)) // 받는 사람 프사
     ]
   });
 }
