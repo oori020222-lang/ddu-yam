@@ -253,64 +253,71 @@ if (interaction.isChatInputCommand()) {
       });
     }
 
+return interaction.editReply({
+  embeds: [
+    new EmbedBuilder()
+      .setColor(COLOR_INFO)
+      .setTitle("💰 현재 잔액 💰")
+      .setFooter({
+        text: `${nick} ｜ ${fmt(row.balance)} 코인`,
+        iconURL: avatar(guild, user.id)
+      })
+  ]
+});
+  }
+
+ // ──────────────────────
+// /송금
+// ──────────────────────
+if (commandName === '송금') {
+  const target = options.getUser('유저');
+  const amount = options.getInteger('금액');
+  if (!target || amount <= 0 || user.id === target.id) {
     return interaction.editReply({
-      embeds: [new EmbedBuilder().setColor(COLOR_INFO).setAuthor({ name: nick, iconURL: avatar(guild, user.id) }).setTitle("💰 현재 잔액").setDescription(`${fmt(row.balance)} 코인 💰`)]
+      embeds: [
+        new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 송금 불가")
+          .setDescription("자기 자신에게는 송금할 수 없고 금액은 1 이상이어야 합니다.")
+      ]
     });
   }
 
-  // ──────────────────────
-  // /송금
-  // ──────────────────────
-  if (commandName === '송금') {
-    const target = options.getUser('유저');
-    const amount = options.getInteger('금액');
-    if (!target || amount <= 0 || user.id === target.id) {
-      return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 송금 불가").setDescription("자기 자신에게는 송금할 수 없고 금액은 1 이상이어야 합니다.")]
-      });
-    }
-
-    const senderRes = await db.query("SELECT balance FROM users WHERE id = $1", [user.id]);
-    const senderRow = senderRes.rows[0];
-    if (!senderRow || senderRow.balance < amount) {
-      return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 실패").setDescription("잔액 부족 또는 계정 없음")]
-      });
-    }
-
-    await db.query("INSERT INTO users (id, balance, lastDaily) VALUES ($1, 0, '') ON CONFLICT (id) DO NOTHING", [target.id]);
-    await db.query("UPDATE users SET balance = balance - $1 WHERE id = $2", [amount, user.id]);
-    await db.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [amount, target.id]);
-
+  const senderRes = await db.query("SELECT balance FROM users WHERE id = $1", [user.id]);
+  const senderRow = senderRes.rows[0];
+  if (!senderRow || senderRow.balance < amount) {
     return interaction.editReply({
-      embeds: [new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("💌 송금 완료 💌").setDescription(`**받는 사람**\n<@${target.id}>\n\n**송금 금액**\n💰 ${fmt(amount)} 코인`)]
+      embeds: [
+        new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 실패")
+          .setDescription("잔액 부족 또는 계정 없음")
+      ]
     });
   }
 
-  // ──────────────────────
-  // /동전던지기
-  // ──────────────────────
-  if (commandName === '동전던지기') {
-    const side = options.getString('선택');
-    const betInput = options.getString('금액');
-    const res = await db.query("SELECT balance FROM users WHERE id = $1", [user.id]);
-    const row = res.rows[0];
-    if (!row) return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 실패").setDescription("계정이 없습니다. `/돈내놔`로 시작하세요!")] });
+  await db.query("INSERT INTO users (id, balance, lastDaily) VALUES ($1, 0, '') ON CONFLICT (id) DO NOTHING", [target.id]);
+  await db.query("UPDATE users SET balance = balance - $1 WHERE id = $2", [amount, user.id]);
+  await db.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [amount, target.id]);
 
-    let bet = (betInput === "올인") ? row.balance : parseInt(betInput, 10);
-    if (!Number.isFinite(bet) || bet <= 0 || row.balance < bet) {
-      return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 실패").setDescription("잔액 부족 혹은 금액 오류입니다.")] });
-    }
-
-    const result = Math.random() < 0.5 ? '앞면' : '뒷면';
-    let newBalance = row.balance;
-    if (result === side) newBalance += bet; else newBalance -= bet;
-    await db.query("UPDATE users SET balance = $1 WHERE id = $2", [newBalance, user.id]);
-
-    return interaction.editReply({
-      embeds: [new EmbedBuilder().setColor(result === side ? COLOR_SUCCESS : COLOR_ERROR).setTitle(result === side ? "승리 🎉" : "패배 ❌").setDescription(`${result} 결과!\n잔액: ${fmt(newBalance)} 코인`)]
-    });
-  }
+  return interaction.editReply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(COLOR_SUCCESS)
+        .setTitle("💌 송금 완료 💌")
+        .setDescription(
+          `**보낸 사람**\n[👤] ${nick}\n\n` +
+          `**받는 사람**\n[👤] <@${target.id}>\n\n` +
+          `**송금 금액** 💰 ${fmt(amount)} 코인`
+        )
+        .setFooter({
+          text: `${nick} → ${target.username}`,
+          iconURL: avatar(guild, user.id) // 보낸 사람 프사
+        })
+        .setThumbnail(avatar(guild, target.id)) // 받는 사람 프사
+    ]
+  });
+}
 
   // ──────────────────────
   // /대박복권
@@ -337,7 +344,26 @@ if (interaction.isChatInputCommand()) {
     const newBal = row.balance + (payout - bet);
     await db.query("UPDATE users SET balance = $1 WHERE id = $2", [newBal, user.id]);
 
-    return interaction.editReply({ embeds: [new EmbedBuilder().setColor(payout > 0 ? COLOR_SUCCESS : COLOR_ERROR).setTitle(result + (payout > 0 ? " 당첨!" : " 꽝")).setDescription(`결과: ${result}\n잔액: ${fmt(newBal)} 코인`)] });
+return interaction.editReply({
+  embeds: [
+    new EmbedBuilder()
+      .setColor(payout > 0 ? COLOR_SUCCESS : COLOR_ERROR)
+      .setTitle(
+        payout > 0
+          ? `📌 당첨결과 ${result} ${PAYOUTS[result]}배!`
+          : `📌 당첨결과 ${result} 꽝!`
+      )
+      .setDescription(
+        payout > 0
+          ? `획득 +${fmt(payout - bet)} 코인`
+          : `손실 -${fmt(bet)} 코인`
+      )
+      .setFooter({
+        text: `${nick} ｜ ${fmt(newBal)} 코인`,
+        iconURL: avatar(guild, user.id)
+      })
+  ]
+});
   }
 
   // ──────────────────────
@@ -461,24 +487,24 @@ if (interaction.isChatInputCommand()) {
     if (pickedCard === '🎉') {
       const payout = wager * 3;
       newBal += (payout - wager);
-      embed = new EmbedBuilder()
-        .setColor(COLOR_SUCCESS)
-        .setTitle("🎉 승리!")
-        .setDescription(
-          `선택: 카드 ${chosen + 1} → ${pickedCard}\n\n` +
-          `모든 카드:\n1번: ${cards[0]} | 2번: ${cards[1]} | 3번: ${cards[2]}\n\n` +
-          `+${fmt(payout)} 코인 획득!\n잔액: ${fmt(newBal)} 코인`
-        );
+    embed = new EmbedBuilder()
+  .setColor(COLOR_SUCCESS)
+  .setTitle("📌 🎉 승리!")
+  .setDescription(`선택: 카드 ${chosen + 1} → ${pickedCard}\n\n+${fmt(payout - wager)} 코인`)
+  .setFooter({
+    text: `${interaction.user.username} ｜ ${fmt(newBal)} 코인`,
+    iconURL: avatar(guild, interaction.user.id)
+  });
     } else {
       newBal -= wager;
-      embed = new EmbedBuilder()
-        .setColor(COLOR_ERROR)
-        .setTitle("❌ 패배")
-        .setDescription(
-          `선택: 카드 ${chosen + 1} → ${pickedCard}\n\n` +
-          `모든 카드:\n1번: ${cards[0]} | 2번: ${cards[1]} | 3번: ${cards[2]}\n\n` +
-          `-${fmt(wager)} 코인 손실...\n잔액: ${fmt(newBal)} 코인`
-        );
+     embed = new EmbedBuilder()
+  .setColor(COLOR_ERROR)
+  .setTitle("📌 ❌ 패배")
+  .setDescription(`선택: 카드 ${chosen + 1} → ${pickedCard}\n\n-${fmt(wager)} 코인`)
+  .setFooter({
+    text: `${interaction.user.username} ｜ ${fmt(newBal)} 코인`,
+    iconURL: avatar(guild, interaction.user.id)
+  });
     }
 
     await db.query("UPDATE users SET balance = $1 WHERE id = $2", [newBal, interaction.user.id]);
