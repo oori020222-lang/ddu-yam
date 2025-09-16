@@ -258,7 +258,7 @@ client.on('interactionCreate', async (interaction) => {
         embeds: [
           new EmbedBuilder()
             .setColor(COLOR_INFO)
-            .setTitle("💲 잔액 💲")
+            .setTitle("🪙 잔액 🪙")
             .setFooter({
               text: `${nick} ｜ ${fmt(row.balance)} 코인`,
               iconURL: avatar(guild, user.id)
