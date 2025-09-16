@@ -1,10 +1,23 @@
+
 import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 
 const commands = [
   new SlashCommandBuilder()
+    .setName('관리자권한')
+    .setDescription('관리자 기능을 ON/OFF 합니다')
+    .addStringOption(option =>
+      option.setName('상태')
+        .setDescription('on 또는 off')
+        .setRequired(true)
+        .addChoices(
+          { name: 'ON', value: 'on' },
+          { name: 'OFF', value: 'off' }
+        )),
+
+  new SlashCommandBuilder()
     .setName('돈내놔')
-    .setDescription('첫 돈 20,000원을 지급받습니다!'),
+    .setDescription('첫 돈 20,000 코인을 지급받습니다!'),
 
   new SlashCommandBuilder()
     .setName('잔액')
@@ -22,7 +35,11 @@ const commands = [
     .setName('동전던지기')
     .setDescription('동전 앞/뒤를 맞춰보세요!')
     .addStringOption(option =>
-      option.setName('선택').setDescription('앞면/뒷면 선택').setRequired(true))
+      option.setName('선택').setDescription('앞면/뒷면 선택').setRequired(true)
+        .addChoices(
+          { name: '앞면', value: '앞면' },
+          { name: '뒷면', value: '뒷면' }
+        ))
     .addStringOption(option =>
       option.setName('금액').setDescription('베팅 금액 (숫자 또는 "올인")').setRequired(true)),
 
@@ -73,4 +90,3 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     console.error(err);
   }
 })();
-

@@ -1,18 +1,19 @@
 {
-  "name": "discord-bot",
+  "name": "discord-coin-bot",
   "version": "1.0.0",
-  "description": "My Discord Bot",
+  "description": "Discord 코인 게임 봇 (Render 배포용)",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "deploy": "node deploy-commands.js",
-    "build": "npm install && npm run deploy"
+    "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.15.3",
+    "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "pg": "^8.16.3"
+    "pg": "^8.11.5"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
