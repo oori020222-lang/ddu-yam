@@ -1,19 +1,10 @@
-
 import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 
 const commands = [
   new SlashCommandBuilder()
     .setName('관리자권한')
-    .setDescription('관리자 기능을 ON/OFF 합니다')
-    .addStringOption(option =>
-      option.setName('상태')
-        .setDescription('on 또는 off')
-        .setRequired(true)
-        .addChoices(
-          { name: 'ON', value: 'on' },
-          { name: 'OFF', value: 'off' }
-        )),
+    .setDescription('관리자 권한을 토글합니다 (ON ↔ OFF)'),
 
   new SlashCommandBuilder()
     .setName('돈내놔')
@@ -82,7 +73,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   try {
     console.log('📡 글로벌 명령어 등록 중...');
     await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID), // 🔥 글로벌 등록
+      Routes.applicationCommands(process.env.CLIENT_ID),
       { body: commands }
     );
     console.log('✅ 글로벌 명령어 등록 완료!');
@@ -90,3 +81,4 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     console.error(err);
   }
 })();
+

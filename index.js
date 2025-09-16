@@ -53,6 +53,9 @@ const COLOR_ERROR = 0xed4245;
 const COLOR_INFO = 0x3498db;
 const COLOR_ADMIN = 0xfee75c;
 
+// 관리자 모드 상태 (기본 OFF)
+let adminMode = false;
+
 // ──────────────────────
 // 명령어 등록 함수
 // ──────────────────────
@@ -60,19 +63,7 @@ async function registerCommands(includeAdmin = false) {
   const baseCommands = [
     {
       name: "관리자권한",
-      description: "관리자 기능을 ON/OFF 합니다",
-      options: [
-        {
-          name: "상태",
-          type: 3, // STRING
-          description: "on 또는 off",
-          required: true,
-          choices: [
-            { name: "on", value: "on" },
-            { name: "off", value: "off" }
-          ]
-        }
-      ]
+      description: "관리자 권한을 토글합니다 (ON ↔ OFF)"
     },
     {
       name: "돈내놔",
@@ -157,10 +148,10 @@ client.on('interactionCreate', async (interaction) => {
 
   const { commandName, options, user, guild } = interaction;
   const nick = guild?.members.cache.get(user.id)?.displayName || user.username;
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true }); // 기본적으로 관리자 메시지는 숨김
 
   // ──────────────────────
-  // /관리자권한 on/off
+  // /관리자권한 (토글)
   // ──────────────────────
   if (commandName === '관리자권한') {
     if (user.id !== process.env.ADMIN_ID) {
@@ -169,16 +160,17 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    const state = options.getString('상태');
-    if (state === 'on') {
-      await registerCommands(true);
+    adminMode = !adminMode; // 토글 ON ↔ OFF
+
+    if (adminMode) {
+      await registerCommands(true); // 지급 추가
       return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("✅ 관리자 권한 ON").setDescription("이제 `/지급` 명령어를 사용할 수 있습니다.")]
+        embeds: [new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("✅ 관리자 권한 ON").setDescription("`/지급` 명령어가 활성화되었습니다.")]
       });
     } else {
-      await registerCommands(false);
+      await registerCommands(false); // 지급 제거
       return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 관리자 권한 OFF").setDescription("`/지급` 명령어가 제거되었습니다.")]
+        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 관리자 권한 OFF").setDescription("`/지급` 명령어가 비활성화되었습니다.")]
       });
     }
   }
