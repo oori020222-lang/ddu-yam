@@ -21,10 +21,16 @@ app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(PORT, () => console.log(`✅ Web server running on port ${PORT}`));
 
 // ──────────────────────
-// 디스코드 봇 설정
+// 디스코드 봇 설정 (수정됨)
 // ──────────────────────
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.DirectMessages,   // ✅ DM 이벤트 받기
+    GatewayIntentBits.MessageContent,   // ✅ 메시지 내용 읽기
+  ],
+  partials: ['CHANNEL'], // ✅ DM 채널 캐시 안 된 경우에도 동작
 });
 
 // ✅ PostgreSQL 연결
