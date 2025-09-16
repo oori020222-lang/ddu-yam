@@ -7,6 +7,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
+import { ChannelType } from 'discord.js';   // ✅ DM 체크용
 import sqlite3 from 'sqlite3';
 import express from 'express';
 
@@ -41,10 +42,6 @@ db.run(`
   )
 `);
 
-// 관리자 모드
-let adminMode = false;
-const adminId = "627846998074327051"; // 본인 Discord ID
-
 // 색상
 const COLOR_SUCCESS = 0x57f287;
 const COLOR_ERROR = 0xed4245;
@@ -55,6 +52,44 @@ client.once('ready', () => {
   console.log(`🤖 ${client.user.tag}로 로그인함`);
 });
 
+// ──────────────────────
+// DM 관리자 지급 (Slash 명령어 등록 X)
+// ──────────────────────
+client.on('messageCreate', async (msg) => {
+  if (msg.author.id !== process.env.ADMIN_ID) return; // 관리자만
+  if (msg.channel.type !== ChannelType.DM) return; // DM에서만 실행
+
+  const parts = msg.content.trim().split(/\s+/);
+  if (parts[0] === "지급" && parts.length === 3) {
+    const mention = parts[1].replace(/[<@!>]/g, "");
+    const amount = parseInt(parts[2], 10);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return msg.reply("❌ 금액은 1 이상이어야 합니다.");
+    }
+
+    db.run("INSERT OR IGNORE INTO users (id, balance, lastDaily) VALUES (?, 0, '')", [mention]);
+    db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, mention]);
+
+    const userObj = await client.users.fetch(mention).catch(() => null);
+    const name = userObj?.username || mention;
+
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_ADMIN)
+      .setAuthor({ name: "관리자 지급", iconURL: msg.author.displayAvatarURL() })
+      .setTitle("💌 지급 완료 💌")
+      .setDescription(
+        `**받는 사람**\n<@${mention}>\n\n` +
+        `**지급 금액**\n💰 ${fmt(amount)} 코인`
+      );
+
+    msg.reply({ embeds: [embed] });
+  }
+});
+
+// ──────────────────────
+// Slash 명령어 (돈내놔, 잔액, 송금, 동전던지기, 대박복권, 야바위, 랭킹, 청소)
+// ──────────────────────
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand() && !interaction.isButton()) return;
 
@@ -62,7 +97,7 @@ client.on('interactionCreate', async (interaction) => {
   const nick = guild.members.cache.get(user.id)?.displayName || user.username;
 
   if (interaction.isChatInputCommand()) {
-    await interaction.deferReply({ ephemeral: commandName.startsWith("관리자") });
+    await interaction.deferReply();
 
     // ──────────────────────
     // 돈내놔
@@ -171,65 +206,6 @@ client.on('interactionCreate', async (interaction) => {
         interaction.editReply({ embeds: [embed] });
       });
     }
-
-  // ──────────────────────
-// /관리자권한
-// ──────────────────────
-else if (commandName === '관리자권한') {
-  if (user.id !== adminId) {
-    const embed = new EmbedBuilder()
-      .setColor(COLOR_ERROR)
-      .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-      .setTitle("❌ 권한 없음")
-      .setDescription("이 명령어는 관리자만 사용할 수 있습니다!");
-    return interaction.editReply({ embeds: [embed], ephemeral: true });
-  }
-  adminMode = !adminMode;
-  const embed = new EmbedBuilder()
-    .setColor(adminMode ? COLOR_SUCCESS : COLOR_ERROR)
-    .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
-    .setTitle("⚙️ 관리자 모드 전환")
-    .setDescription(`관리자 모드가 ${adminMode ? '🟢 ON' : '🔴 OFF'} 상태가 되었습니다.`);
-  return interaction.editReply({ embeds: [embed], ephemeral: true });
-}
-
-// ──────────────────────
-// /관리자지급
-// ──────────────────────
-else if (commandName === '관리자지급') {
-  if (user.id !== adminId || !adminMode) {
-    const embed = new EmbedBuilder()
-      .setColor(COLOR_ERROR)
-      .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
-      .setTitle("❌ 사용 불가")
-      .setDescription("관리자 모드가 꺼져 있거나 권한이 없습니다.");
-    return interaction.editReply({ embeds: [embed], ephemeral: true });
-  }
-
-  const target = options.getUser('유저');
-  const amount = options.getInteger('금액');
-  if (!target || amount <= 0) {
-    const embed = new EmbedBuilder()
-      .setColor(COLOR_ERROR)
-      .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
-      .setTitle("❌ 금액 오류")
-      .setDescription("지급 금액은 1 이상이어야 합니다!");
-    return interaction.editReply({ embeds: [embed], ephemeral: true });
-  }
-
-  db.run("INSERT OR IGNORE INTO users (id, balance, lastDaily) VALUES (?, 0, '')", [target.id]);
-  db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, target.id]);
-
-  const embed = new EmbedBuilder()
-    .setColor(COLOR_ADMIN)
-    .setAuthor({ name: "관리자", iconURL: avatar(guild, user.id) })
-    .setTitle("💌 관리자 지급 완료 💌")
-    .setDescription(
-      `**받는 사람**\n<@${target.id}>\n\n` +
-      `**지급 금액**\n💰 ${fmt(amount)} 코인`
-    );
-  return interaction.editReply({ embeds: [embed], ephemeral: true });
-}
 
     // ──────────────────────
     // 동전던지기 (올인 지원)
