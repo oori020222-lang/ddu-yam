@@ -667,7 +667,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
   const res = await db.query("SELECT balance FROM users WHERE id = $1", [interaction.user.id]);
   const row = res.rows[0];
   if (!row || row.balance < wager) {
-    await interaction.reply({
+    return await interaction.reply({
       embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 오류").setDescription("잔액이 부족하거나 계정이 없습니다.")],
       ephemeral: true
     });
@@ -685,7 +685,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
       .setTitle("🎉 승리!")
       .setDescription(
         `선택: 카드 ${chosen + 1} → ${pickedCard}\n\n` +
-        `모든 카드:\n1번: ${cards[0]} | 2번: ${cards[1]} | 3번: ${cards[2]}\n\n` + // ✅ 3장만 표시
+        `모든 카드:\n1번: ${cards[0]} | 2번: ${cards[1]} | 3번: ${cards[2]}\n\n` +
         `+${fmt(payout)} 코인 획득!\n잔액: ${fmt(newBal)} 코인`
       );
   } else {
@@ -695,7 +695,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
       .setTitle("❌ 패배")
       .setDescription(
         `선택: 카드 ${chosen + 1} → ${pickedCard}\n\n` +
-        `모든 카드:\n1번: ${cards[0]} | 2번: ${cards[1]} | 3번: ${cards[2]}\n\n` + // ✅ 3장만 표시
+        `모든 카드:\n1번: ${cards[0]} | 2번: ${cards[1]} | 3번: ${cards[2]}\n\n` +
         `-${fmt(wager)} 코인 손실...\n잔액: ${fmt(newBal)} 코인`
       );
   }
