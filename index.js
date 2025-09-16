@@ -258,7 +258,7 @@ client.on('interactionCreate', async (interaction) => {
         embeds: [
           new EmbedBuilder()
             .setColor(COLOR_INFO)
-            .setTitle("💸 잔액 💸")
+            .setTitle("💲 잔액 💲")
             .setFooter({
               text: `${nick} ｜ ${fmt(row.balance)} 코인`,
               iconURL: avatar(guild, user.id)
@@ -349,7 +349,7 @@ if (commandName === '송금') {
         embeds: [
           new EmbedBuilder()
             .setColor(win ? COLOR_SUCCESS : COLOR_ERROR)
-            .setTitle(win ? "🎉 승리 🎉" : "❌ 패배 ❌")
+            .setTitle(win ? "🎉 승리 " : "❌ 패배 ")
             .setDescription(`${result}!\n베팅: ${fmt(bet)} 코인`)
             .setFooter({
               text: `${nick} ｜ ${fmt(newBalance)} 코인`,
@@ -390,8 +390,8 @@ if (commandName === '송금') {
             .setColor(payout > 0 ? COLOR_SUCCESS : COLOR_ERROR)
             .setTitle(
               payout > 0
-                ? `🎉 당첨결과 ${result} ${PAYOUTS[result]}배! 🎉`
-                : `❌ 당첨결과 ${result} 꽝! ❌`
+                ? `🎉 당첨결과 ${result} ${PAYOUTS[result]}배`
+                : `❌ 당첨결과 ${result} 꽝 `
             )
             .setDescription(
               payout > 0
@@ -551,7 +551,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
     newBal += (payout - wager);
     embed = new EmbedBuilder()
       .setColor(COLOR_SUCCESS)
-      .setTitle("🎉 승리! 🎉")
+      .setTitle("🎉 승리 ")
       .setDescription(
         `선택: 카드 ${chosen + 1} → ${pickedCard}\n정답: 카드 ${answerIndex + 1} → 🎉\n\n+${fmt(payout - wager)} 코인`
       )
@@ -563,7 +563,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
     newBal -= wager;
     embed = new EmbedBuilder()
       .setColor(COLOR_ERROR)
-      .setTitle("❌ 패배 ❌")
+      .setTitle("❌ 패배 ")
       .setDescription(
         `선택: 카드 ${chosen + 1} → ${pickedCard}\n정답: 카드 ${answerIndex + 1} → 🎉\n\n-${fmt(wager)} 코인`
       )
