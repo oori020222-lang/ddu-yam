@@ -70,9 +70,17 @@ client.on('messageCreate', async (msg) => {
 
   const parts = msg.content.trim().split(/\s+/);
   if (parts[0] === "지급" && parts.length === 3) {
-    const mention = parts[1].replace(/[<@!>]/g, "");
-    const amount = parseInt(parts[2], 10);
+    let mention;
 
+    // 🟢 멘션 처리: <@ID>, @닉네임 멘션, 숫자 ID 모두 허용
+    const targetUser = msg.mentions.users.first();
+    if (targetUser) {
+      mention = targetUser.id;
+    } else {
+      mention = parts[1].replace(/\D/g, ""); // 숫자만 추출
+    }
+
+    const amount = parseInt(parts[2], 10);
     if (!Number.isFinite(amount) || amount <= 0) {
       return msg.reply("❌ 금액은 1 이상이어야 합니다.");
     }
@@ -82,9 +90,6 @@ client.on('messageCreate', async (msg) => {
       [mention]
     );
     await db.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [amount, mention]);
-
-    const userObj = await client.users.fetch(mention).catch(() => null);
-    const name = userObj?.username || mention;
 
     const embed = new EmbedBuilder()
       .setColor(COLOR_ADMIN)
@@ -538,5 +543,3 @@ client.on('interactionCreate', async (interaction) => {
 // 마지막: 로그인
 // ──────────────────────
 client.login(process.env.DISCORD_TOKEN);
-
-
