@@ -210,62 +210,91 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ──────────────────────
-    // /돈내놔 (한국시간 00시 리셋)
-    // ──────────────────────
-    if (commandName === '돈내놔') {
-      const now = new Date();
-      const today = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+// ──────────────────────
+// /돈내놔 (한국시간 00시 리셋)
+// ──────────────────────
+if (commandName === '돈내놔') {
+  const now = new Date();
+  const today = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      const result = await db.query("SELECT balance, lastDaily FROM users WHERE id = $1", [user.id]);
-      const row = result.rows[0];
+  const result = await db.query("SELECT balance, lastDaily FROM users WHERE id = $1", [user.id]);
+  const row = result.rows[0];
 
-      if (!row) {
-        await db.query("INSERT INTO users (id, balance, lastDaily) VALUES ($1, $2, $3)", [user.id, 20000, today]);
-        return interaction.editReply({
-          embeds: [new EmbedBuilder().setColor(COLOR_ADMIN).setTitle("🎉 첫 보상 지급 완료! 🎉").setDescription("💰 20,000 코인 지급!")]
-        });
-      }
+  if (!row) {
+    const firstBalance = 20000;
+    await db.query("INSERT INTO users (id, balance, lastDaily) VALUES ($1, $2, $3)", [user.id, firstBalance, today]);
+    return interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(COLOR_ADMIN)
+          .setTitle("🎉 첫 보상 지급 완료! 🎉")
+          .setDescription(`지급된 코인\n💰 ${fmt(firstBalance)} 코인\n\n시작 안내\n✨ 오늘부터 코인 게임을 즐겨보세요!`)
+          .setFooter({
+            text: `${nick} ｜ ${fmt(firstBalance)} 코인`,
+            iconURL: avatar(guild, user.id)
+          })
+      ]
+    });
+  }
 
-      if (row.lastdaily === today) {
-        return interaction.editReply({
-          embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("⏳ 이미 받음").setDescription("오늘은 이미 돈을 받았습니다. 내일 00:00 이후 다시 시도하세요!")]
-        });
-      }
+  if (row.lastdaily === today) {
+    return interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("⏳ 이미 받음")
+          .setDescription("오늘은 이미 돈을 받았습니다. 내일 00:00 이후 다시 시도하세요!")
+      ]
+    });
+  }
 
-      const newBalance = row.balance + 20000;
-      await db.query("UPDATE users SET balance = $1, lastDaily = $2 WHERE id = $3", [newBalance, today, user.id]);
+  const newBalance = row.balance + 20000;
+  await db.query("UPDATE users SET balance = $1, lastDaily = $2 WHERE id = $3", [newBalance, today, user.id]);
 
-      return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("💸 돈 지급 완료!").setFooter({ text: `${nick} ｜ ${fmt(newBalance)} 코인`, iconURL: avatar(guild, user.id) })]
-      });
-    }
+  return interaction.editReply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(COLOR_SUCCESS)
+        .setTitle("🎉 오늘 지급 완료! 🎉")
+        .setDescription(`지급된 코인\n💰 20,000 코인\n\n시작 안내\n✨ 코인 게임을 즐겨보세요!`)
+        .setFooter({
+          text: `${nick} ｜ ${fmt(newBalance)} 코인`,
+          iconURL: avatar(guild, user.id)
+        })
+    ]
+  });
+}
 
-    // ──────────────────────
-    // /잔액
-    // ──────────────────────
-    if (commandName === '잔액') {
-      const result = await db.query("SELECT balance FROM users WHERE id = $1", [user.id]);
-      const row = result.rows[0];
+   // ──────────────────────
+// /잔액
+// ──────────────────────
+if (commandName === '잔액') {
+  const result = await db.query("SELECT balance FROM users WHERE id = $1", [user.id]);
+  const row = result.rows[0];
 
-      if (!row) {
-        return interaction.editReply({
-          embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 계정 없음").setDescription("아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.")]
-        });
-      }
+  if (!row) {
+    return interaction.editReply({
+      embeds: [
+        new EmbedBuilder()
+          .setColor(COLOR_ERROR)
+          .setTitle("❌ 계정 없음")
+          .setDescription("아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.")
+      ]
+    });
+  }
 
-      return interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(COLOR_INFO)
-            .setTitle("🪙 잔액 🪙")
-            .setFooter({
-              text: `${nick} ｜ ${fmt(row.balance)} 코인`,
-              iconURL: avatar(guild, user.id)
-            })
-        ]
-      });
-    }
+  return interaction.editReply({
+    embeds: [
+      new EmbedBuilder()
+        .setColor(COLOR_INFO)
+        .setTitle("💰 현재 잔액 💰")
+        .setFooter({
+          text: `${nick} ｜ ${fmt(row.balance)} 코인`,
+          iconURL: avatar(guild, user.id)
+        })
+    ]
+  });
+}
 
  // ──────────────────────
 // /송금
