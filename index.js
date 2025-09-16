@@ -148,7 +148,13 @@ client.on('interactionCreate', async (interaction) => {
 
   const { commandName, options, user, guild } = interaction;
   const nick = guild?.members.cache.get(user.id)?.displayName || user.username;
-  await interaction.deferReply({ ephemeral: true }); // 기본적으로 관리자 메시지는 숨김
+
+  // 👉 관리자 전용만 ephemeral, 나머지는 공개
+  if (commandName === '관리자권한' || commandName === '지급') {
+    await interaction.deferReply({ ephemeral: true });
+  } else if (interaction.isChatInputCommand()) {
+    await interaction.deferReply(); // 공개
+  }
 
   // ──────────────────────
   // /관리자권한 (토글)
@@ -212,10 +218,14 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   // ──────────────────────
-  // 돈내놔
+  // /돈내놔 (한국시간 기준)
   // ──────────────────────
   if (commandName === '돈내놔') {
-    const today = new Date().toDateString();
+    const now = new Date();
+    const today = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0]; // YYYY-MM-DD (KST)
+
     const result = await db.query("SELECT balance, lastDaily FROM users WHERE id = $1", [user.id]);
     const row = result.rows[0];
 
@@ -228,7 +238,7 @@ client.on('interactionCreate', async (interaction) => {
 
     if (row.lastdaily === today) {
       return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("⏳ 이미 받음").setDescription("오늘은 이미 돈을 받았습니다.")]
+        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("⏳ 이미 받음").setDescription("오늘은 이미 돈을 받았습니다. 내일 00:00 이후 다시 시도하세요!")]
       });
     }
 
@@ -414,32 +424,44 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // ──────────────────────
-  // 야바위 버튼 처리
-  // ──────────────────────
-  if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
-    const [_, index, cardString, bet] = interaction.customId.split('_');
-    const chosen = parseInt(index);
-    const wager = parseInt(bet);
-    const cards = cardString.split('');
+// ──────────────────────
+// 버튼 처리 (야바위)
+// ──────────────────────
+if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
+  const [_, index, cardString, bet] = interaction.customId.split('_');
+  const chosen = parseInt(index);
+  const wager = parseInt(bet);
+  const cards = cardString.split('');
 
-    const res = await db.query("SELECT balance FROM users WHERE id = $1", [interaction.user.id]);
-    const row = res.rows[0];
-    if (!row || row.balance < wager) {
-      return interaction.reply({ embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 오류").setDescription("잔액이 부족하거나 계정이 없습니다.")], ephemeral: true });
-    }
-
-    let newBal = row.balance;
-    const pickedCard = cards[chosen];
-    if (pickedCard === '🎉') newBal += (wager * 3 - wager); else newBal -= wager;
-    await db.query("UPDATE users SET balance = $1 WHERE id = $2", [newBal, interaction.user.id]);
-
-    await interaction.deferUpdate();
-    setTimeout(() => {
-      interaction.editReply({ embeds: [new EmbedBuilder().setColor(pickedCard === '🎉' ? COLOR_SUCCESS : COLOR_ERROR).setTitle(pickedCard === '🎉' ? "🎉 승리!" : "❌ 패배").setDescription(`선택: 카드 ${chosen + 1} → ${pickedCard}\n잔액: ${fmt(newBal)} 코인`)], components: [] });
-    }, 1500);
+  const res = await db.query("SELECT balance FROM users WHERE id = $1", [interaction.user.id]);
+  const row = res.rows[0];
+  if (!row || row.balance < wager) {
+    return interaction.reply({
+      embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 오류").setDescription("잔액이 부족하거나 계정이 없습니다.")],
+      ephemeral: true
+    });
   }
-});
+
+  let newBal = row.balance;
+  const pickedCard = cards[chosen];
+  let embed;
+
+  if (pickedCard === '🎉') {
+    const payout = wager * 3;
+    newBal += (payout - wager);
+    embed = new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("🎉 승리!").setDescription(`선택: 카드 ${chosen + 1} → ${pickedCard}\n\n+${fmt(payout)} 코인\n잔액: ${fmt(newBal)} 코인`);
+  } else {
+    newBal -= wager;
+    embed = new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 패배").setDescription(`선택: 카드 ${chosen + 1} → ${pickedCard}\n\n-${fmt(wager)} 코인\n잔액: ${fmt(newBal)} 코인`);
+  }
+
+  await db.query("UPDATE users SET balance = $1 WHERE id = $2", [newBal, interaction.user.id]);
+
+  // ❌ deferUpdate 제거, 바로 editReply
+  setTimeout(() => {
+    interaction.editReply({ embeds: [embed], components: [] });
+  }, 1500);
+}
 
 // ──────────────────────
 // 마지막: 로그인
