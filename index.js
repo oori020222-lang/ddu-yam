@@ -20,7 +20,7 @@ app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(PORT, () => console.log(`✅ Web server running on port ${PORT}`));
 
 // ──────────────────────
-// 디스코드 봇 설정
+// 디스코드 클라이언트
 // ──────────────────────
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -32,10 +32,8 @@ const db = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// 숫자 포맷
+// 공통 함수
 const fmt = (n) => Number(n).toLocaleString();
-
-// 아바타
 const avatar = (guild, uid) =>
   guild?.members.cache.get(uid)?.displayAvatarURL({ extension: 'png', size: 64 }) ||
   client.users.cache.get(uid)?.displayAvatarURL({ extension: 'png', size: 64 });
@@ -51,7 +49,6 @@ const avatar = (guild, uid) =>
   `);
 })();
 
-// 색상
 const COLOR_SUCCESS = 0x57f287;
 const COLOR_ERROR = 0xed4245;
 const COLOR_INFO = 0x3498db;
@@ -61,22 +58,13 @@ const COLOR_ADMIN = 0xfee75c;
 let adminMode = false;
 
 // ──────────────────────
-// 명령어 등록 함수
+// Slash 명령어 등록
 // ──────────────────────
 async function registerCommands(includeAdmin = false) {
   const baseCommands = [
-    {
-      name: "관리자권한",
-      description: "관리자 권한을 토글합니다 (ON ↔ OFF)"
-    },
-    {
-      name: "돈내놔",
-      description: "첫 시작 또는 매일 보상 코인 받기"
-    },
-    {
-      name: "잔액",
-      description: "내 현재 잔액 확인"
-    },
+    { name: "관리자권한", description: "관리자 권한 토글 (ON/OFF)" },
+    { name: "돈내놔", description: "첫 시작 또는 매일 보상 코인 받기" },
+    { name: "잔액", description: "내 잔액 확인" },
     {
       name: "송금",
       description: "다른 유저에게 코인 송금",
@@ -87,39 +75,39 @@ async function registerCommands(includeAdmin = false) {
     },
     {
       name: "동전던지기",
-      description: "코인 앞뒤 맞추기 게임",
+      description: "코인 앞뒤 맞추기",
       options: [
-        { name: "선택", type: 3, description: "앞면 또는 뒷면", required: true, choices: [{ name: "앞면", value: "앞면" }, { name: "뒷면", value: "뒷면" }] },
+        { name: "선택", type: 3, description: "앞면/뒷면", required: true, choices: [{ name: "앞면", value: "앞면" }, { name: "뒷면", value: "뒷면" }] },
         { name: "금액", type: 3, description: "베팅 금액 또는 올인", required: true }
       ]
     },
     {
       name: "대박복권",
-      description: "복권 게임 (1000 이상 베팅)",
+      description: "복권 게임 (1000 이상)",
       options: [
         { name: "금액", type: 3, description: "베팅 금액 또는 올인", required: true }
       ]
     },
     {
       name: "야바위",
-      description: "야바위 게임 (1000 이상 베팅)",
+      description: "야바위 게임 (1000 이상)",
       options: [
         { name: "금액", type: 3, description: "베팅 금액 또는 올인", required: true }
       ]
     },
     {
       name: "랭킹",
-      description: "코인 랭킹 보기",
+      description: "코인 랭킹",
       options: [
-        { name: "종류", type: 3, description: "server 또는 global", required: true, choices: [{ name: "server", value: "server" }, { name: "global", value: "global" }] }
+        { name: "종류", type: 3, description: "server/global", required: true, choices: [{ name: "server", value: "server" }, { name: "global", value: "global" }] }
       ]
     },
     {
       name: "청소",
       description: "채팅 청소",
       options: [
-        { name: "개수", type: 4, description: "삭제할 메시지 개수 (1~100)", required: true },
-        { name: "유저", type: 6, description: "특정 유저 메시지만 삭제", required: false }
+        { name: "개수", type: 4, description: "삭제 개수 (1~100)", required: true },
+        { name: "유저", type: 6, description: "특정 유저만", required: false }
       ]
     }
   ];
@@ -127,10 +115,10 @@ async function registerCommands(includeAdmin = false) {
   if (includeAdmin) {
     baseCommands.push({
       name: "지급",
-      description: "관리자가 특정 유저에게 코인 지급",
+      description: "관리자가 유저에게 코인 지급",
       options: [
         { name: "유저", type: 6, description: "대상 유저", required: true },
-        { name: "금액", type: 4, description: "지급 금액", required: true }
+        { name: "금액", type: 4, description: "코인 금액", required: true }
       ]
     });
   }
@@ -139,16 +127,13 @@ async function registerCommands(includeAdmin = false) {
   console.log("✅ 명령어 등록 완료 (관리자 지급:", includeAdmin ? "ON" : "OFF", ")");
 }
 
-// ──────────────────────
-// 봇 준비 완료
-// ──────────────────────
 client.once('ready', async () => {
   console.log(`🤖 ${client.user.tag} 로그인됨`);
-  await registerCommands(false); // 시작시 지급 OFF
+  await registerCommands(false); // 기본 OFF 시작
 });
 
 // ──────────────────────
-// 명령어 처리
+// Slash & Button 처리
 // ──────────────────────
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand() && !interaction.isButton()) return;
@@ -156,35 +141,32 @@ client.on('interactionCreate', async (interaction) => {
   const { commandName, options, user, guild } = interaction;
   const nick = guild?.members.cache.get(user.id)?.displayName || user.username;
 
-  // 👉 관리자 전용만 ephemeral
-  if (commandName === '관리자권한' || commandName === '지급') {
-    await interaction.deferReply({ ephemeral: true });
-  } else if (interaction.isChatInputCommand()) {
-    await interaction.deferReply(); // 공개
+  // ✅ 관리자 관련만 나만 보이게, 나머지는 공개
+  if (interaction.isChatInputCommand()) {
+    if (commandName === '관리자권한' || commandName === '지급') {
+      await interaction.deferReply({ ephemeral: true });
+    } else {
+      await interaction.deferReply();
+    }
   }
 
   // ──────────────────────
-  // /관리자권한
+  // /관리자권한 (토글)
   // ──────────────────────
   if (commandName === '관리자권한') {
     if (user.id !== process.env.ADMIN_ID) {
       return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 권한 없음").setDescription("관리자만 사용할 수 있습니다.")]
+        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 권한 없음").setDescription("관리자만 사용 가능")]
       });
     }
 
     adminMode = !adminMode;
-
     if (adminMode) {
       await registerCommands(true);
-      return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("✅ 관리자 권한 ON").setDescription("`/지급` 명령어가 활성화되었습니다.")]
-      });
+      return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle("✅ 관리자 권한 ON").setDescription("`/지급` 명령어 활성화")] });
     } else {
       await registerCommands(false);
-      return interaction.editReply({
-        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 관리자 권한 OFF").setDescription("`/지급` 명령어가 비활성화되었습니다.")]
-      });
+      return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 관리자 권한 OFF").setDescription("`/지급` 명령어 비활성화")] });
     }
   }
 
