@@ -334,54 +334,57 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // ──────────────────────
-    // 야바위 (올인 지원)
-    // ──────────────────────
-    else if (commandName === '야바위') {
-      const betInput = options.getString('금액');
-      db.get("SELECT balance FROM users WHERE id = ?", [user.id], async (err, row) => {
-        if (!row) {
-          const embed = new EmbedBuilder()
-            .setColor(COLOR_ERROR)
-            .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-            .setTitle("❌ 실패")
-            .setDescription("계정이 없습니다. `/돈내놔`로 시작하세요!");
-          return interaction.editReply({ embeds: [embed] });
-        }
-
-        let bet = (betInput === "올인") ? row.balance : parseInt(betInput, 10);
-        if (!Number.isFinite(bet) || bet < 1000 || row.balance < bet) {
-          const embed = new EmbedBuilder()
-            .setColor(COLOR_ERROR)
-            .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-            .setTitle("❌ 베팅 실패")
-            .setDescription("잔액 부족 또는 최소 베팅(1000) 이상이어야 합니다.");
-          return interaction.editReply({ embeds: [embed] });
-        }
-
-        const cards = ['❌', '❌', '🎉'];
-        for (let i = cards.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [cards[i], cards[j]] = [cards[j], cards[i]];
-        }
-
-        const rowButtons = new ActionRowBuilder().addComponents(
-          cards.map((_, i) =>
-            new ButtonBuilder()
-              .setCustomId(`yabawi_${i}_${bet}`)
-              .setLabel(`카드 ${i + 1}`)
-              .setStyle(ButtonStyle.Primary)
-          )
-        );
-
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_INFO)
-          .setTitle("🎲 야바위 게임")
-          .setDescription("3장의 카드 중 하나를 선택하세요!");
-
-        interaction.editReply({ embeds: [embed], components: [rowButtons] });
-      });
+// ──────────────────────
+// 야바위 (올인 지원)
+// ──────────────────────
+else if (commandName === '야바위') {
+  const betInput = options.getString('금액');
+  db.get("SELECT balance FROM users WHERE id = ?", [user.id], async (err, row) => {
+    if (!row) {
+      const embed = new EmbedBuilder()
+        .setColor(COLOR_ERROR)
+        .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+        .setTitle("❌ 실패")
+        .setDescription("계정이 없습니다. `/돈내놔`로 시작하세요!");
+      return interaction.editReply({ embeds: [embed] });
     }
+
+    let bet = (betInput === "올인") ? row.balance : parseInt(betInput, 10);
+    if (!Number.isFinite(bet) || bet < 1000 || row.balance < bet) {
+      const embed = new EmbedBuilder()
+        .setColor(COLOR_ERROR)
+        .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
+        .setTitle("❌ 베팅 실패")
+        .setDescription("잔액 부족 또는 최소 베팅(1000) 이상이어야 합니다.");
+      return interaction.editReply({ embeds: [embed] });
+    }
+
+    // 카드 섞기
+    const cards = ['❌', '❌', '🎉'];
+    for (let i = cards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [cards[i], cards[j]] = [cards[j], cards[i]];
+    }
+
+    // 버튼 생성 (카드 배열 전체를 customId에 저장)
+    const rowButtons = new ActionRowBuilder().addComponents(
+      cards.map((card, i) =>
+        new ButtonBuilder()
+          .setCustomId(`yabawi_${i}_${cards.join('')}_${bet}`)
+          .setLabel(`카드 ${i + 1}`)
+          .setStyle(ButtonStyle.Primary)
+      )
+    );
+
+    // 처음엔 전부 ❓로만 보여주기
+    const embed = new EmbedBuilder()
+      .setColor(COLOR_INFO)
+      .setTitle("🎲 야바위 게임")
+      .setDescription("3장의 카드 중 하나를 선택하세요!\n\n❓ | ❓ | ❓");
+
+    interaction.editReply({ embeds: [embed], components: [rowButtons] });
+  });
+}
 
     // ──────────────────────
     // 랭킹 (서버/전체)
@@ -485,57 +488,77 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // ──────────────────────
-  // 버튼 처리 (야바위)
-  // ──────────────────────
-  if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
-    const [_, index, bet] = interaction.customId.split('_');
-    const chosen = parseInt(index);
-    const results = ['❌', '❌', '🎉'];
-    const result = results[chosen];
+// ──────────────────────
+// 버튼 처리 (야바위)
+// ──────────────────────
+if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
+  const [_, index, cardString, bet] = interaction.customId.split('_');
+  const chosen = parseInt(index);
+  const wager = parseInt(bet);
+  const cards = cardString.split('');
 
-    db.get("SELECT balance FROM users WHERE id = ?", [interaction.user.id], (err, row) => {
-      if (!row || row.balance < bet) {
-        return interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(COLOR_ERROR)
-              .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
-              .setTitle("❌ 오류")
-              .setDescription("잔액이 부족하거나 계정이 없습니다.")
-          ],
-          ephemeral: true
-        });
-      }
+  db.get("SELECT balance FROM users WHERE id = ?", [interaction.user.id], (err, row) => {
+    if (!row || row.balance < wager) {
+      return interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(COLOR_ERROR)
+            .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+            .setTitle("❌ 오류")
+            .setDescription("잔액이 부족하거나 계정이 없습니다.")
+        ],
+        ephemeral: true
+      });
+    }
 
-      let newBal = row.balance;
-      let embed;
+    let newBal = row.balance;
+    const pickedCard = cards[chosen];
+    let embed;
 
-     if (result === '🎉') {
-  const payout = bet * 3;
-  newBal += (payout - bet);
-  embed = new EmbedBuilder()
-    .setColor(COLOR_SUCCESS)
-    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-    .setDescription(
-      `${result} 당첨! x3배 🎉 +${fmt(payout)} 코인\n` +
-      `${nick} | 잔액 ${fmt(newBal)} 코인`
-    );
-} else {
-  newBal -= bet;
-  embed = new EmbedBuilder()
-    .setColor(COLOR_ERROR)
-    .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-    .setDescription(
-      `${result} 꽝 ❌ -${fmt(bet)} 코인\n` +
-      `${nick} | 잔액 ${fmt(newBal)} 코인`
-    );
-}
+    if (pickedCard === '🎉') {
+      const payout = wager * 3;
+      newBal += (payout - wager);
+      embed = new EmbedBuilder()
+        .setColor(COLOR_SUCCESS)
+        .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+        .setTitle("🎉 승리!")
+        .setDescription(
+          `당신이 선택한 카드: **카드 ${chosen + 1} → ${pickedCard}**\n\n` +
+          `모든 카드:\n${cards.map((c, i) => `${i+1}번: ${c}`).join(" | ")}\n\n` +
+          `+${fmt(payout)} 코인 획득!\n` +
+          `잔액: ${fmt(newBal)} 코인`
+        );
+    } else {
+      newBal -= wager;
+      embed = new EmbedBuilder()
+        .setColor(COLOR_ERROR)
+        .setAuthor({ name: interaction.user.username, iconURL: interaction.user.displayAvatarURL() })
+        .setTitle("❌ 패배")
+        .setDescription(
+          `당신이 선택한 카드: **카드 ${chosen + 1} → ${pickedCard}**\n\n` +
+          `모든 카드:\n${cards.map((c, i) => `${i+1}번: ${c}`).join(" | ")}\n\n` +
+          `-${fmt(wager)} 코인 손실...\n` +
+          `잔액: ${fmt(newBal)} 코인`
+        );
+    }
+ 
+db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, interaction.user.id]);
 
-      db.run("UPDATE users SET balance = ? WHERE id = ?", [newBal, interaction.user.id]);
-      interaction.update({ embeds: [embed], components: [] });
+    // ❓ → 실제 카드로 뒤집는 느낌 연출
+    interaction.update({ 
+      embeds: [
+        new EmbedBuilder()
+          .setColor(COLOR_INFO)
+          .setTitle("🔄 카드 뒤집는 중...")
+          .setDescription("❓ | ❓ | ❓")
+      ], 
+      components: [] 
+    }).then(() => {
+      setTimeout(() => {
+        interaction.editReply({ embeds: [embed] });
+      }, 1500); // 1.5초 뒤 결과 공개
     });
-  }
-});
+  });
+}
 
 client.login(process.env.DISCORD_TOKEN);
