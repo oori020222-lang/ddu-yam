@@ -149,12 +149,14 @@ client.on('interactionCreate', async (interaction) => {
   const { commandName, options, user, guild } = interaction;
   const nick = guild?.members.cache.get(user.id)?.displayName || user.username;
 
-  // 👉 관리자 전용만 ephemeral, 나머지는 공개
-if (commandName === '관리자권한' || commandName === '지급') {
-  await interaction.deferReply({ flags: 64 });
-  } else if (interaction.isChatInputCommand()) {
+// 👉 관리자 전용만 비공개, 나머지는 공개
+if (interaction.isChatInputCommand()) {
+  if (commandName === '관리자권한' || commandName === '지급') {
+    await interaction.deferReply({ flags: 64 }); // 비공개
+  } else {
     await interaction.deferReply(); // 공개
   }
+}
 
   // ──────────────────────
   // /관리자권한 (토글)
