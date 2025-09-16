@@ -667,7 +667,7 @@ if (interaction.isButton() && interaction.customId.startsWith('yabawi')) {
   const res = await db.query("SELECT balance FROM users WHERE id = $1", [interaction.user.id]);
   const row = res.rows[0];
   if (!row || row.balance < wager) {
-    return interaction.reply({
+    await interaction.reply({
       embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 오류").setDescription("잔액이 부족하거나 계정이 없습니다.")],
       ephemeral: true
     });
