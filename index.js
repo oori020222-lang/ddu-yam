@@ -28,10 +28,11 @@ const client = new Client({
 const db = new sqlite3.Database('./database.db');
 const fmt = (n) => Number(n).toLocaleString();
 
-// 유저 아바타
+// 유저 아바타 (guild null 방어 추가)
 const avatar = (guild, uid) =>
-  guild.members.cache.get(uid)?.displayAvatarURL({ extension: 'png', size: 64 }) ||
+  guild?.members?.cache?.get(uid)?.displayAvatarURL({ extension: 'png', size: 64 }) ||
   client.users.cache.get(uid)?.displayAvatarURL({ extension: 'png', size: 64 });
+
 
 // DB 초기화 (서버 구분 없음)
 db.run(`
@@ -94,12 +95,13 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand() && !interaction.isButton()) return;
 
   const { commandName, options, user, guild } = interaction;
-  const nick = guild.members.cache.get(user.id)?.displayName || user.username;
+  // nick 계산 (guild null 방어)
+  const nick = interaction.member?.displayName ?? user.username;
 
   if (interaction.isChatInputCommand()) {
     await interaction.deferReply();
 
-    // ──────────────────────
+   // ──────────────────────
     // 돈내놔
     // ──────────────────────
     if (commandName === '돈내놔') {
@@ -138,30 +140,6 @@ client.on('interactionCreate', async (interaction) => {
             `**지급 금액**\n💰 20,000 코인\n\n` +
             `**현재 잔액**\n${fmt(newBalance)} 코인`
           );
-        interaction.editReply({ embeds: [embed] });
-      });
-    }
-
-    // ──────────────────────
-    // 잔액
-    // ──────────────────────
-    else if (commandName === '잔액') {
-      db.get("SELECT balance FROM users WHERE id = ?", [user.id], (err, row) => {
-        if (!row) {
-          const embed = new EmbedBuilder()
-            .setColor(COLOR_ERROR)
-            .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-            .setTitle("❌ 계정 없음")
-            .setDescription("아직 돈을 받은 적이 없습니다! `/돈내놔`로 시작하세요.");
-          return interaction.editReply({ embeds: [embed] });
-        }
-
-        const embed = new EmbedBuilder()
-          .setColor(COLOR_INFO)
-          .setAuthor({ name: nick, iconURL: avatar(guild, user.id) })
-          .setTitle("💰 현재 잔액")
-          .setDescription(`${fmt(row.balance)} 코인 💰`);
-
         interaction.editReply({ embeds: [embed] });
       });
     }
