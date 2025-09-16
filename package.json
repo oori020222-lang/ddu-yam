@@ -1,11 +1,12 @@
 {
   "name": "discord-coin-bot",
   "version": "1.0.0",
-  "description": "Discord 코인 게임 봇 (Render 배포용)",
+  "description": "Discord 코인 게임 봇",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1",
