@@ -401,7 +401,7 @@ if (commandName === '송금') {
       }
 
       const SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "💎"];
-      const WEIGHTS = [34.9, 30, 20, 10, 5, 0.1];
+      const WEIGHTS = [42 , 27, 16, 10, 4.9, 0.1];
       const PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10, "💎": 100 };
 
       const r = Math.random() * 100;
@@ -489,39 +489,50 @@ if (commandName === '야바위') {
   });
 }
 
-    // ──────────────────────
-    // /랭킹 (서버/전체) — 캐시 미스 보완
-    // ──────────────────────
-    if (commandName === '랭킹') {
-      const type = options.getString('종류');
-      const res = await db.query("SELECT id, balance FROM users ORDER BY balance DESC LIMIT 10");
-      const rows = res.rows;
-      if (!rows || rows.length === 0) {
-        return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("📉 데이터 없음")] });
-      }
+// ──────────────────────
+// /랭킹 (서버/전체) — 0원 제외
+// ──────────────────────
+if (commandName === '랭킹') {
+  const type = options.getString('종류');
 
-      if (type === 'server') {
-        const rankMsg = await Promise.all(rows.map(async (r, i) => {
-          let member = guild.members.cache.get(r.id);
-          if (!member) member = await guild.members.fetch(r.id).catch(() => null);
-          const name = member?.displayName || r.id;
-          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
-          return `${medal} ${name} — ${fmt(r.balance)} 코인`;
-        }));
-        return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLOR_INFO).setTitle(`⭐ ${guild.name} 서버 랭킹`).setDescription(rankMsg.join("\n"))] });
-      }
+  // 0원 이상인 유저만 가져오기
+  const res = await db.query(
+    "SELECT id, balance FROM users WHERE COALESCE(balance, 0) > 0 ORDER BY balance DESC LIMIT 10"
+  );
+  const rows = res.rows;
 
-      if (type === 'global') {
-        const rankMsg = await Promise.all(rows.map(async (r, i) => {
-          let member = client.users.cache.get(r.id);
-          if (!member) member = await client.users.fetch(r.id).catch(() => null);
-          const name = member?.username || r.id;
-          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
-          return `${medal} ${name} — ${fmt(r.balance)} 코인`;
-        }));
-        return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLOR_INFO).setTitle("🏆 전체 서버 랭킹").setDescription(rankMsg.join("\n"))] });
-      }
-    }
+  if (!rows || rows.length === 0) {
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("📉 데이터 없음")]
+    });
+  }
+
+  if (type === 'server') {
+    const rankMsg = await Promise.all(rows.map(async (r, i) => {
+      let member = guild.members.cache.get(r.id);
+      if (!member) member = await guild.members.fetch(r.id).catch(() => null);
+      const name = member?.displayName || r.id;
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
+      return `${medal} ${name} — ${fmt(r.balance)} 코인`;
+    }));
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR_INFO).setTitle(`⭐ ${guild.name} 서버 랭킹`).setDescription(rankMsg.join("\n"))]
+    });
+  }
+
+  if (type === 'global') {
+    const rankMsg = await Promise.all(rows.map(async (r, i) => {
+      let member = client.users.cache.get(r.id);
+      if (!member) member = await client.users.fetch(r.id).catch(() => null);
+      const name = member?.username || r.id;
+      const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `🏅 #${i + 1}`;
+      return `${medal} ${name} — ${fmt(r.balance)} 코인`;
+    }));
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR_INFO).setTitle("🏆 전체 서버 랭킹").setDescription(rankMsg.join("\n"))]
+    });
+  }
+}
 
     // ──────────────────────
     // /청소
