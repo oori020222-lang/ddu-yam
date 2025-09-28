@@ -1,12 +1,3 @@
-좋지! 아래처럼 “숫자 보장”과 “lastDaily 키 통일”만 반영해서 최소 수정으로 전체 파일을 정리해줬어. 그대로 교체해도 되고, 핵심 변경점은 주석으로 표시했어.
-
-모든 balance, bet, amount는 Number(...)로 변환 후 연산
-row.lastDaily/row.lastdaily 혼재 → row.lastdaily로 통일
-betInput 처리 시 row.balance도 Number로 캐스팅
-fmt는 그대로 사용하되, 넘기는 값이 숫자임을 보장
-
-수정본 전체
-
 import 'dotenv/config';
 import {
 Client,
