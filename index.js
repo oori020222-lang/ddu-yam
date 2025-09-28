@@ -473,6 +473,101 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+// ──────────────────────
+// 청소
+// ──────────────────────
+if (commandName === '청소') {
+  const count = toNum(options.getInteger('개수'));
+  const targetUser = options.getUser('유저');
+
+  if (!guild) {
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 서버 전용").setDescription("DM에서는 사용할 수 없습니다.")]
+    });
+  }
+  if (!Number.isFinite(count) || count < 1 || count > 100) {
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 개수 오류").setDescription("삭제 개수는 1~100 사이여야 합니다.")]
+    });
+  }
+
+  const channel = interaction.channel;
+  const messages = await channel.messages.fetch({ limit: 100 });
+
+  const list = targetUser
+    ? messages.filter(m => m.author.id === targetUser.id).first(count)
+    : messages.first(count);
+
+  if (!list || list.length === 0) {
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR_INFO).setTitle("ℹ️ 삭제 없음").setDescription("삭제할 메시지가 없습니다.")]
+    });
+  }
+
+  let deleted = 0;
+  for (const m of list) {
+    try { await m.delete(); deleted++; } catch {}
+  }
+
+  return interaction.editReply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR_SUCCESS)
+      .setTitle("🧹 청소 완료")
+      .setDescription(`${targetUser ? `<@${targetUser.id}>의 ` : ''}메시지 ${fmt(deleted)}개 삭제`)]
+  });
+}
+
+// ──────────────────────
+// 랭킹
+// ──────────────────────
+if (commandName === '랭킹') {
+  const kind = options.getString('종류'); // 'server' | 'global'
+  let rows = [];
+
+  if (kind === 'global') {
+    const res = await db.query("SELECT id, balance FROM users ORDER BY balance DESC LIMIT 10");
+    rows = res.rows;
+  } else {
+    if (!guild) {
+      return interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(COLOR_ERROR).setTitle("❌ 서버 전용").setDescription("DM에서는 server 랭킹을 볼 수 없습니다.")]
+      });
+    }
+    // 길드 멤버 아이디 배열
+    const memberIds = guild.members.cache.map(m => m.user.id);
+    if (memberIds.length === 0) {
+      return interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(COLOR_INFO).setTitle("ℹ️ 랭킹 없음").setDescription("표시할 멤버가 없습니다.")]
+      });
+    }
+    const res = await db.query(
+      "SELECT id, balance FROM users WHERE id = ANY($1) ORDER BY balance DESC LIMIT 10",
+      [memberIds]
+    );
+    rows = res.rows;
+  }
+
+  if (!rows || rows.length === 0) {
+    return interaction.editReply({
+      embeds: [new EmbedBuilder().setColor(COLOR_INFO).setTitle("ℹ️ 랭킹 없음").setDescription("표시할 데이터가 없습니다.")]
+    });
+  }
+
+  const lines = rows.map((r, i) => {
+    const uname = client.users.cache.get(r.id)?.username || `User ${r.id}`;
+    const name = guild ? guildNick(guild, r.id, uname) : uname;
+    const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`;
+    return `${medal} ${name} — ${fmt(toNum(r.balance))} 코인`;
+  });
+
+  return interaction.editReply({
+    embeds: [new EmbedBuilder()
+      .setColor(COLOR_INFO)
+      .setTitle(kind === 'global' ? "🌐 글로벌 코인 랭킹 TOP 10" : "🛡️ 서버 코인 랭킹 TOP 10")
+      .setDescription(lines.join('\n'))]
+  });
+}
+
     // ──────────────────────
     // 버튼 처리 (야바위 선택) - 문자열 이어붙이기 방지
 // ──────────────────────
