@@ -408,7 +408,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       const SYMBOLS = ["🥚", "🐣", "🐥", "🐔", "🍗", "💎"];
-      const WEIGHTS = [42 , 27, 16, 10, 4.9, 0.1];
+      const WEIGHTS = [45 , 27, 16, 8.95, 3, 0.05];
       const PAYOUTS = { "🐣": 2, "🐥": 3, "🐔": 5, "🍗": 10, "💎": 100 };
 
       const r = Math.random() * 100;
